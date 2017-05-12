@@ -18,7 +18,7 @@ class Agent(BaseModel):
     self.sess = sess
     self.weight_dir = 'weights'
 
-    self.env = environment
+    self.agent = environment
     self.history = History(self.config)
     self.memory = ReplayMemory(self.config, self.model_dir)
 
@@ -38,10 +38,9 @@ class Agent(BaseModel):
     max_avg_ep_reward = 0
     ep_rewards, actions = [], []
 
-    screen, reward, action, terminal = self.env.new_random_game()
-
+    state, reward, action, terminal = self.agent.new_random_game()
     for _ in range(self.history_length):
-      self.history.add(screen)
+      self.history.add(state)
 
     for self.step in tqdm(range(start_step, self.max_step), ncols=70, initial=start_step):
       if self.step == self.learn_start:
@@ -52,12 +51,12 @@ class Agent(BaseModel):
       # 1. predict
       action = self.predict(self.history.get())
       # 2. act
-      screen, reward, terminal = self.env.act(action, is_training=True)
+      state, reward, terminal = self.agent.act(action, is_training=True)
       # 3. observe
-      self.observe(screen, reward, action, terminal)
+      self.observe(state, reward, action, terminal)
 
       if terminal:
-        screen, reward, action, terminal = self.env.new_random_game()
+        state, reward, action, terminal = self.agent.new_random_game()
 
         num_game += 1
         ep_rewards.append(ep_reward)
@@ -119,7 +118,7 @@ class Agent(BaseModel):
           * (self.ep_end_t - max(0., self.step - self.learn_start)) / self.ep_end_t))
 
     if random.random() < ep:
-      action = random.randrange(self.env.action_size)
+      action = random.randrange(self.agent.action_size)
     else:
       action = self.q_action.eval({self.s_t: [s_t]})[0]
 
@@ -211,20 +210,20 @@ class Agent(BaseModel):
           linear(self.value_hid, 1, name='value_out')
 
         self.advantage, self.w['adv_w_out'], self.w['adv_w_b'] = \
-          linear(self.adv_hid, self.env.action_size, name='adv_out')
+          linear(self.adv_hid, self.agent.action_size, name='adv_out')
 
         # Average Dueling
         self.q = self.value + (self.advantage - 
           tf.reduce_mean(self.advantage, reduction_indices=1, keep_dims=True))
       else:
         self.l4, self.w['l4_w'], self.w['l4_b'] = linear(self.l3_flat, 512, activation_fn=activation_fn, name='l4')
-        self.q, self.w['q_w'], self.w['q_b'] = linear(self.l4, self.env.action_size, name='q')
+        self.q, self.w['q_w'], self.w['q_b'] = linear(self.l4, self.agent.action_size, name='q')
 
       self.q_action = tf.argmax(self.q, dimension=1)
 
       q_summary = []
       avg_q = tf.reduce_mean(self.q, 0)
-      for idx in xrange(self.env.action_size):
+      for idx in xrange(self.agent.action_size):
         q_summary.append(tf.summary.histogram('q/%s' % idx, avg_q[idx]))
       self.q_summary = tf.summary.merge(q_summary, 'q_summary')
 
@@ -258,7 +257,7 @@ class Agent(BaseModel):
           linear(self.t_value_hid, 1, name='target_value_out')
 
         self.t_advantage, self.t_w['adv_w_out'], self.t_w['adv_w_b'] = \
-          linear(self.t_adv_hid, self.env.action_size, name='target_adv_out')
+          linear(self.t_adv_hid, self.agent.action_size, name='target_adv_out')
 
         # Average Dueling
         self.target_q = self.t_value + (self.t_advantage - 
@@ -267,7 +266,7 @@ class Agent(BaseModel):
         self.target_l4, self.t_w['l4_w'], self.t_w['l4_b'] = \
             linear(self.target_l3_flat, 512, activation_fn=activation_fn, name='target_l4')
         self.target_q, self.t_w['q_w'], self.t_w['q_b'] = \
-            linear(self.target_l4, self.env.action_size, name='target_q')
+            linear(self.target_l4, self.agent.action_size, name='target_q')
 
       self.target_q_idx = tf.placeholder('int32', [None, None], 'outputs_idx')
       self.target_q_with_idx = tf.gather_nd(self.target_q, self.target_q_idx)
@@ -285,7 +284,7 @@ class Agent(BaseModel):
       self.target_q_t = tf.placeholder('float32', [None], name='target_q_t')
       self.action = tf.placeholder('int64', [None], name='action')
 
-      action_one_hot = tf.one_hot(self.action, self.env.action_size, 1.0, 0.0, name='action_one_hot')
+      action_one_hot = tf.one_hot(self.action, self.agent.action_size, 1.0, 0.0, name='action_one_hot')
       q_acted = tf.reduce_sum(self.q * action_one_hot, reduction_indices=1, name='q_acted')
 
       self.delta = self.target_q_t - q_acted
@@ -370,11 +369,11 @@ class Agent(BaseModel):
 
     if not self.display:
       gym_dir = '/tmp/%s-%s' % (self.env_name, get_time())
-      self.env.env.monitor.start(gym_dir)
+      self.agent.env.monitor.start(gym_dir)
 
     best_reward, best_idx = 0, 0
     for idx in xrange(n_episode):
-      screen, reward, action, terminal = self.env.new_random_game()
+      screen, reward, action, terminal = self.agent.new_random_game()
       current_reward = 0
 
       for _ in range(self.history_length):
@@ -384,7 +383,7 @@ class Agent(BaseModel):
         # 1. predict
         action = self.predict(test_history.get(), test_ep)
         # 2. act
-        screen, reward, terminal = self.env.act(action, is_training=False)
+        screen, reward, terminal = self.agent.act(action, is_training=False)
         # 3. observe
         test_history.add(screen)
 
@@ -401,5 +400,5 @@ class Agent(BaseModel):
       print("="*30)
 
     if not self.display:
-      self.env.env.monitor.close()
+      self.agent.env.monitor.close()
       #gym.upload(gym_dir, writeup='https://github.com/devsisters/DQN-tensorflow', api_key='')

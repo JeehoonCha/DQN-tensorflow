@@ -5,6 +5,7 @@ import tensorflow as tf
 from dqn.agent import Agent
 from dqn.environment import GymEnvironment, SimpleGymEnvironment
 from config import get_config
+from py4j.java_gateway import JavaGateway
 
 flags = tf.app.flags
 
@@ -48,10 +49,10 @@ def main(_):
   with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
     config = get_config(FLAGS) or FLAGS
 
-    if config.env_type == 'simple':
-      env = SimpleGymEnvironment(config)
-    else:
-      env = GymEnvironment(config)
+    gateway = JavaGateway()
+    actionRobot = gateway.entry_point
+    result = actionRobot.testInt()
+    print (result)
 
     if not tf.test.is_gpu_available() and FLAGS.use_gpu:
       raise Exception("use_gpu flag is true when no GPUs are available")
@@ -59,7 +60,7 @@ def main(_):
     if not FLAGS.use_gpu:
       config.cnn_format = 'NHWC'
 
-    agent = Agent(config, env, sess)
+    agent = Agent(config, actionRobot, sess)
 
     if FLAGS.is_train:
       agent.train()

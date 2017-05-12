@@ -1,11 +1,11 @@
 import gym
 import random
-import numpy as np
 from .utils import rgb2gray, imresize
 
 class Environment(object):
   def __init__(self, config):
     self.env = gym.make(config.env_name)
+    self.env.reset()
 
     screen_width, screen_height, self.action_repeat, self.random_start = \
         config.screen_width, config.screen_height, config.action_repeat, config.random_start
@@ -49,7 +49,7 @@ class Environment(object):
 
   @property
   def lives(self):
-    return self.env.ale.lives()
+    return self.env.env.ale.lives()
 
   @property
   def state(self):
@@ -61,6 +61,7 @@ class Environment(object):
 
   def after_act(self, action):
     self.render()
+
 
 class GymEnvironment(Environment):
   def __init__(self, config):
@@ -85,6 +86,7 @@ class GymEnvironment(Environment):
 
     self.after_act(action)
     return self.state
+
 
 class SimpleGymEnvironment(Environment):
   def __init__(self, config):
