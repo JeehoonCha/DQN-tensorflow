@@ -15,7 +15,7 @@ flags.DEFINE_boolean('dueling', False, 'Whether to use dueling deep q-network')
 flags.DEFINE_boolean('double_q', False, 'Whether to use double q-learning')
 
 # Environment
-flags.DEFINE_string('env_name', 'Breakout-v0', 'The name of gym environment to use')
+flags.DEFINE_string('env_name', 'AngryBirdAI', 'The name of gym environment to use')
 flags.DEFINE_integer('action_repeat', 4, 'The number of action to be repeated')
 
 # Etc
@@ -51,8 +51,6 @@ def main(_):
 
     gateway = JavaGateway()
     actionRobot = gateway.entry_point
-    result = actionRobot.testInt()
-    print (result)
 
     if not tf.test.is_gpu_available() and FLAGS.use_gpu:
       raise Exception("use_gpu flag is true when no GPUs are available")
@@ -60,11 +58,15 @@ def main(_):
     if not FLAGS.use_gpu:
       config.cnn_format = 'NHWC'
 
-    agent = Agent(config, actionRobot, sess)
+    # (Jeehoon): For now, we only train the agent of level 1
+    print ("Building Agent..")
+    agent = Agent(config, actionRobot, sess, 1)
 
     if FLAGS.is_train:
+      print ("Training the agent..")
       agent.train()
     else:
+      print ("Playing the agent..")
       agent.play()
 
 if __name__ == '__main__':
