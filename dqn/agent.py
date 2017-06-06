@@ -99,6 +99,7 @@ class Agent(BaseModel):
         # 2. act
         angle = action / 100
         power = action % 100
+        #power = 90
         tabInterval = 200
 
         observation = self.agent.shoot(angle, power, tabInterval)
@@ -312,13 +313,16 @@ class Agent(BaseModel):
 
   def predict(self, s_t, test_ep=None):
     ep = test_ep or (self.ep_end +
-        max(0., (self.ep_start - self.ep_end)
+        max(0., (self.ep_start - self.ep_end) # (1.0 - 0.1) * ( 4 - max(0, 2 - 2))/4
           * (self.ep_end_t - max(0., self.step - self.learn_start)) / self.ep_end_t))
-
-    if random.random() < ep:
+    ep = test_ep or (self.ep_start - self.ep_end)
+    ep_rnd = random.random()
+    if ep_rnd < ep:
       action = random.randrange(self.action_size)
     else:
       action = self.q_action.eval({self.s_t: [s_t]})[0]
+
+    print('##################to check randomness ep:', ep, 'random:', ep_rnd)
 
     return action
 
@@ -340,6 +344,7 @@ class Agent(BaseModel):
 
   def q_learning_mini_batch(self):
     if self.memory.count < self.history_length:
+      print('********self.memory.count < self.history_length', self.memory.count, self.history_length)
       return
     else:
       s_t, action, reward, s_t_plus_1, terminal = self.memory.sample()
