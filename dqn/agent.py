@@ -12,6 +12,7 @@ from .replay_memory import ReplayMemory
 from .ops import linear, conv2d, clipped_error
 from .utils import get_time, save_pkl, load_pkl
 
+
 class Agent(BaseModel):
   def __init__(self, config, actionRobot, sess, stage):
     print ("config=" + str(config))
@@ -22,14 +23,13 @@ class Agent(BaseModel):
 
     actionRobot.loadLevel(stage)
     self.action_size = 100 * 100
-    config.max_step = actionRobot.getMaxStep()
-    config.screen_height = actionRobot.getScreenHeight()
-    config.screen_width = actionRobot.getScreenWidth()
+    config.max_step = 5000
+    config.state_length = 8
+    config.state_width = 4
     super(Agent, self).__init__(config)
 
-    self.screen_shape = (config.screen_height, config.screen_width)
+    self.screen_shape = (config.state_length, config.state_width)
     self.history = History(self.config)
-    self.history.add(self.convert_screen_to_numpy_array(actionRobot.getScreen())) # TODO: remove.
     self.memory = ReplayMemory(self.config, self.model_dir)
 
     with tf.variable_scope('step'):
@@ -55,9 +55,6 @@ class Agent(BaseModel):
     # action = observation.getAction()
     terminal = observation.getTerminal()
 
-    for _ in range(self.history_length):
-      self.history.add(screen)
-
     for self.step in tqdm(range(start_step, self.max_step), ncols=70, initial=start_step):
       if self.step == self.learn_start:
         num_game, self.update_count, ep_reward = 0, 0, 0.
@@ -75,6 +72,7 @@ class Agent(BaseModel):
       observation = self.agent.shoot(angle, power, tabInterval)
       screen = self.convert_screen_to_numpy_array(observation.getScreen())
       reward = observation.getReward()
+      reward = -1 if reward == 0 else reward
       terminal = observation.getTerminal()
 
       # 3. observe
@@ -95,6 +93,7 @@ class Agent(BaseModel):
 
       actions.append(action)
       total_reward += reward
+
 
       if self.step >= self.learn_start:
         if self.step % self.test_step == self.test_step - 1:
@@ -209,14 +208,14 @@ class Agent(BaseModel):
     initializer = tf.truncated_normal_initializer(0, 0.02)
     activation_fn = tf.nn.relu
 
-    # training network
+    # training network ((jeehoon): this network is used for q-value estimation and prediction?)
     with tf.variable_scope('prediction'):
       if self.cnn_format == 'NHWC':
         self.s_t = tf.placeholder('float32',
-            [None, self.screen_height, self.screen_width, self.history_length], name='s_t')
+            [None, self.state_length, self.state_width, self.history_length], name='s_t')
       else:
         self.s_t = tf.placeholder('float32',
-            [None, self.history_length, self.screen_height, self.screen_width], name='s_t')
+            [None, self.history_length, self.state_length, self.state_width], name='s_t')
 
       self.l1, self.w['l1_w'], self.w['l1_b'] = conv2d(self.s_t,
           32, [8, 8], [4, 4], initializer, activation_fn, self.cnn_format, name='l1')
@@ -260,10 +259,10 @@ class Agent(BaseModel):
     with tf.variable_scope('target'):
       if self.cnn_format == 'NHWC':
         self.target_s_t = tf.placeholder('float32', 
-            [None, self.screen_height, self.screen_width, self.history_length], name='target_s_t')
+            [None, self.state_length, self.state_width, self.history_length], name='target_s_t')
       else:
         self.target_s_t = tf.placeholder('float32', 
-            [None, self.history_length, self.screen_height, self.screen_width], name='target_s_t')
+            [None, self.history_length, self.state_length, self.state_width], name='target_s_t')
 
       self.target_l1, self.t_w['l1_w'], self.t_w['l1_b'] = conv2d(self.target_s_t, 
           32, [8, 8], [4, 4], initializer, activation_fn, self.cnn_format, name='target_l1')
@@ -430,13 +429,8 @@ class Agent(BaseModel):
         best_reward = current_reward
         best_idx = idx
 
-      print("="*30)
-      print(" [%d] Best reward : %d" % (best_idx, best_reward))
-      print("="*30)
-
     if not self.display:
       self.agent.env.monitor.close()
-      #gym.upload(gym_dir, writeup='https://github.com/devsisters/DQN-tensorflow', api_key='')
 
   def convert_screen_to_numpy_array(self, screen_bytes):
     return np.frombuffer(screen_bytes, dtype='>u4').reshape(self.screen_shape)

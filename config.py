@@ -19,7 +19,7 @@ class AgentConfig(object):
   ep_start = 1.
   ep_end_t = memory_size
 
-  history_length = 4
+  history_length = 1
   train_frequency = 4
   learn_start = 5. * scale
 
@@ -35,8 +35,8 @@ class AgentConfig(object):
 class EnvironmentConfig(object):
   env_name = 'AngryBird'
 
-  # screen_width  = 84
-  # screen_height = 84
+  # state_width  = 84
+  # state_length = 84
   max_reward = 1.
   min_reward = -1.
 
