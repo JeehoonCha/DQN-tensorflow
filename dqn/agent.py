@@ -5,6 +5,9 @@ import random
 import numpy as np
 from tqdm import tqdm
 import tensorflow as tf
+import scipy.ndimage
+import scipy.misc
+import cv2
 
 from .base import BaseModel
 from .history import History
@@ -23,14 +26,26 @@ class Agent(BaseModel):
     actionRobot.loadLevel(stage)
     self.action_size = 100 * 100
     config.max_step = actionRobot.getMaxStep()
-    config.screen_height = actionRobot.getScreenHeight()
-    config.screen_width = actionRobot.getScreenWidth()
+    #self.max_step = config.max_step
+    #config.screen_height = actionRobot.getScreenHeight() # default 84
+    #config.screen_width = actionRobot.getScreenWidth() # default 84
     super(Agent, self).__init__(config)
 
+    #self.screen_shape = (actionRobot.getScreenHeight(), actionRobot.getScreenWidth()) # 480 x 840
     self.screen_shape = (config.screen_height, config.screen_width)
+    self.action_screen_shape = (480, 840)
     self.history = History(self.config)
-    self.history.add(self.convert_screen_to_numpy_array(actionRobot.getScreen())) # TODO: remove.
+    #screen = self.convert_screen_to_numpy_array(actionRobot.getScreen())
+    #screen = np.array(screen, dtype=np.uint8)
+
+    #self.screen = cv2.resize(screen, (config.screen_height,config.screen_width), interpolation=cv2.INTER_CUBIC)
+    #self.history.add(self.convert_screen_to_numpy_array(actionRobot.getScreen())) # TODO: remove.
+    self.history.add(actionRobot.getScreen())
+    #self.history_length = config.history_length
+    #self.history.add(self.screen)
+    #self.model_dir = './logs'
     self.memory = ReplayMemory(self.config, self.model_dir)
+    #self.learn_start = 3
 
     with tf.variable_scope('step'):
       self.step_op = tf.Variable(0, trainable=False, name='step')
@@ -40,7 +55,144 @@ class Agent(BaseModel):
     print ("Building Deep Q Network..")
     self.build_dqn()
 
-  def train(self):
+  def train_ep(self, stage):
+
+    # initialization
+    num_game, self.update_count, ep_reward = 0, 0, 0.
+    total_reward, self.total_loss, self.total_q = 0., 0., 0.
+    max_avg_ep_reward = 0
+    ep_rewards, actions = [], []
+
+    # for training stage 1
+    for ep in range(3):
+      self.stage = stage
+
+      start_step = self.step_op.eval()
+
+      # agent load the specific stage
+      observation = self.agent.loadLevel(self.stage)
+      self.max_step = self.agent.getNumBirds()
+      if self.max_step >= 6 :
+        self.max_step = 4
+      #self.max_step = 4
+      screen = self.convert_screen_to_numpy_array(observation.getScreen())
+
+      reward = observation.getReward()
+      terminal = observation.getTerminal()
+
+      print('ep_iter:',ep ,'stage:',stage,' start_step:', start_step, 'max_step:', self.max_step, ' state:', self.agent.getGameState()) #, 'state:', self.agent.getState())
+
+      for _ in range(self.history_length): # history_length = 3
+        self.history.add(screen)
+
+      for self.step in tqdm(range(start_step, self.max_step), ncols=70, initial=start_step):
+
+        #if self.agent.getGameState() == 'WON':
+        #  print('state = WON.')
+        print('step:',self.step, '1.state:', self.agent.getGameState())
+
+        # 1. predict
+        self.step_input = self.step
+        action = self.predict(self.history.get())
+        print('step:',self.step, '2.predict ', 'state:', self.agent.getGameState())
+
+        # 2. act
+        angle = action / 100
+        power = action % 100
+        tabInterval = 200
+
+        observation = self.agent.shoot(angle, power, tabInterval)
+        print('step:',self.step, '3.action')
+
+        screen = self.convert_screen_to_numpy_array(observation.getScreen())
+        reward = observation.getReward()
+        #terminal = observation.getTerminal()
+        print('step:',self.step, '4.reward:', reward, ' state:', self.agent.getGameState())
+
+        print('step:',self.step,'max_step:',self.max_step, 'angle:', angle, 'power:', power, 'reward:', reward,' state:', self.agent.getGameState() )
+
+        # 3. observe
+        terminal = observation.getTerminal()
+        self.observe(screen, reward, action, terminal)
+        print('step:',self.step, '5.terminal:', terminal, ' state:', self.agent.getGameState())
+
+        #if terminal:
+        #  observation = self.agent.loadLevel(self.stage)
+        #  screen = self.convert_screen_to_numpy_array(observation.getScreen())
+        #  screen = np.array(screen, dtype=np.uint8)
+        #  screen = cv2.resize(screen,self.screen_shape, interpolation=cv2.INTER_CUBIC)
+        #  reward = observation.getReward()
+        #  terminal = observation.getTerminal()
+
+        #  num_game += 1
+        #  ep_rewards.append(ep_reward)
+        #  ep_reward = 0.
+        #else:       #  ep_reward += reward
+        ep_rewards.append(reward)
+
+        actions.append(action)
+        total_reward += reward
+        if str(self.agent.getGameState()) == 'WON'or str(self.agent.getGameState()) == 'LOST' or reward > 8000 :
+          break
+
+      if self.step == self.max_step - 1 or str(self.agent.getGameState()) == 'WON' or str(self.agent.getGameState()) == 'LOST' or reward > 8000:
+      #if self.step == self.max_step - 1 or terminal:
+        print('saving...1')
+        print('step % test_step:', self.step % self.test_step, 'test_step:', self.test_step - 1)
+        avg_reward = total_reward / self.test_step
+        avg_loss = self.total_loss / self.update_count
+        avg_q = self.total_q / self.update_count
+        print('saving...2')
+        try:
+          max_ep_reward = np.max(ep_rewards)
+          min_ep_reward = np.min(ep_rewards)
+          avg_ep_reward = np.mean(ep_rewards)
+        except:
+          max_ep_reward, min_ep_reward, avg_ep_reward = 0, 0, 0
+
+        print('\navg_r: %.4f, avg_l: %.6f, avg_q: %3.6f, avg_ep_r: %.4f, max_ep_r: %.4f, min_ep_r: %.4f, # game: %d' \
+            % (avg_reward, avg_loss, avg_q, avg_ep_reward, max_ep_reward, min_ep_reward, num_game))
+
+        if max_avg_ep_reward * 0.9 <= avg_ep_reward:
+          #self.step_assign_op.eval({self.step_input: self.step + 1})
+          self.save_model(self.step + 1)
+
+          max_avg_ep_reward = max(max_avg_ep_reward, avg_ep_reward)
+
+        print('saving...3')
+        self.agent.loadLevel(self.stage)
+
+        #if self.step >= 3:
+        #self.inject_summary({
+        #    'average.reward': avg_reward,
+        #    'average.loss': avg_loss,
+        #    'average.q': avg_q,
+        #    'episode.max reward': max_ep_reward,
+        #    'episode.min reward': min_ep_reward,
+        #    'episode.avg reward': avg_ep_reward,
+        #    'episode.num of game': num_game,
+        #    'episode.rewards': ep_rewards,
+        #    'episode.actions': actions,
+        #    'training.learning_rate': self.learning_rate_op.eval({self.learning_rate_step: self.step}),
+        #  }, self.step)
+
+        #num_game = 0
+        #total_reward = 0.
+        #self.total_loss = 0.
+        #self.total_q = 0.
+        #self.update_count = 0
+        #ep_reward = 0.
+        #ep_rewards = []
+        #actions = []
+
+
+  def train(self, stage):
+
+    self.stage = stage
+    #self.max_step = self.agent.getMaxStep()
+
+    self.max_step = 100
+
     start_step = self.step_op.eval()
     start_time = time.time()
 
@@ -51,15 +203,22 @@ class Agent(BaseModel):
 
     observation = self.agent.loadLevel(self.stage)
     screen = self.convert_screen_to_numpy_array(observation.getScreen())
+    # resize
+    #screen = scipy.ndimage.zoom(screen, 2, order=3)
+    #screen = np.array(screen, dtype=np.uint8)
+    #screen = cv2.resize(screen,self.screen_shape, interpolation=cv2.INTER_CUBIC)
+
     reward = observation.getReward()
     # action = observation.getAction()
     terminal = observation.getTerminal()
 
-    for _ in range(self.history_length):
+    self.history_length = self.max_step
+
+    for _ in range(self.history_length): # history_length = 3
       self.history.add(screen)
 
     for self.step in tqdm(range(start_step, self.max_step), ncols=70, initial=start_step):
-      if self.step == self.learn_start:
+      if self.step == self.learn_start: # learn_satart = 0
         num_game, self.update_count, ep_reward = 0, 0, 0.
         total_reward, self.total_loss, self.total_q = 0., 0., 0.
         ep_rewards, actions = [], []
@@ -74,8 +233,13 @@ class Agent(BaseModel):
 
       observation = self.agent.shoot(angle, power, tabInterval)
       screen = self.convert_screen_to_numpy_array(observation.getScreen())
+      #screen = np.array(screen, dtype=np.uint8)
+      #screen = cv2.resize(screen,self.screen_shape, interpolation=cv2.INTER_CUBIC)
+
       reward = observation.getReward()
       terminal = observation.getTerminal()
+
+      print('angle:', angle, 'power:', power, 'reward:', reward, 'terminal:', terminal)
 
       # 3. observe
       self.observe(screen, reward, action, terminal)
@@ -83,6 +247,8 @@ class Agent(BaseModel):
       if terminal:
         observation = self.agent.loadLevel(self.stage)
         screen = self.convert_screen_to_numpy_array(observation.getScreen())
+        screen = np.array(screen, dtype=np.uint8)
+        screen = cv2.resize(screen,self.screen_shape, interpolation=cv2.INTER_CUBIC)
         reward = observation.getReward()
         # action = observation.getAction()
         terminal = observation.getTerminal()
@@ -96,50 +262,53 @@ class Agent(BaseModel):
       actions.append(action)
       total_reward += reward
 
-      if self.step >= self.learn_start:
-        if self.step % self.test_step == self.test_step - 1:
-          avg_reward = total_reward / self.test_step
-          avg_loss = self.total_loss / self.update_count
-          avg_q = self.total_q / self.update_count
+      print('step:', self.step, 'learn_start:', self.learn_start)
+      #if self.step >= self.learn_start: # 0~2 >= 2
+      if self.step == self.max_step - 1:
+        print('step % test_step:', self.step % self.test_step, 'test_step:', self.test_step - 1)
+        #if self.step % self.test_step == self.test_step - 1: # step 2 / test_step 2 = test_step 2 - 1 = 1
+        avg_reward = total_reward / self.test_step
+        avg_loss = self.total_loss / self.update_count
+        avg_q = self.total_q / self.update_count
 
-          try:
-            max_ep_reward = np.max(ep_rewards)
-            min_ep_reward = np.min(ep_rewards)
-            avg_ep_reward = np.mean(ep_rewards)
-          except:
-            max_ep_reward, min_ep_reward, avg_ep_reward = 0, 0, 0
+        try:
+          max_ep_reward = np.max(ep_rewards)
+          min_ep_reward = np.min(ep_rewards)
+          avg_ep_reward = np.mean(ep_rewards)
+        except:
+          max_ep_reward, min_ep_reward, avg_ep_reward = 0, 0, 0
 
-          print('\navg_r: %.4f, avg_l: %.6f, avg_q: %3.6f, avg_ep_r: %.4f, max_ep_r: %.4f, min_ep_r: %.4f, # game: %d' \
-              % (avg_reward, avg_loss, avg_q, avg_ep_reward, max_ep_reward, min_ep_reward, num_game))
+        print('\navg_r: %.4f, avg_l: %.6f, avg_q: %3.6f, avg_ep_r: %.4f, max_ep_r: %.4f, min_ep_r: %.4f, # game: %d' \
+            % (avg_reward, avg_loss, avg_q, avg_ep_reward, max_ep_reward, min_ep_reward, num_game))
 
-          if max_avg_ep_reward * 0.9 <= avg_ep_reward:
-            self.step_assign_op.eval({self.step_input: self.step + 1})
-            self.save_model(self.step + 1)
+        if max_avg_ep_reward * 0.9 <= avg_ep_reward:
+          self.step_assign_op.eval({self.step_input: self.step + 1})
+          self.save_model(self.step + 1)
 
-            max_avg_ep_reward = max(max_avg_ep_reward, avg_ep_reward)
+          max_avg_ep_reward = max(max_avg_ep_reward, avg_ep_reward)
 
-          if self.step > 180:
-            self.inject_summary({
-                'average.reward': avg_reward,
-                'average.loss': avg_loss,
-                'average.q': avg_q,
-                'episode.max reward': max_ep_reward,
-                'episode.min reward': min_ep_reward,
-                'episode.avg reward': avg_ep_reward,
-                'episode.num of game': num_game,
-                'episode.rewards': ep_rewards,
-                'episode.actions': actions,
-                'training.learning_rate': self.learning_rate_op.eval({self.learning_rate_step: self.step}),
-              }, self.step)
+        #if self.step >= 3:
+        self.inject_summary({
+            'average.reward': avg_reward,
+            'average.loss': avg_loss,
+            'average.q': avg_q,
+            'episode.max reward': max_ep_reward,
+            'episode.min reward': min_ep_reward,
+            'episode.avg reward': avg_ep_reward,
+            'episode.num of game': num_game,
+            'episode.rewards': ep_rewards,
+            'episode.actions': actions,
+            'training.learning_rate': self.learning_rate_op.eval({self.learning_rate_step: self.step}),
+          }, self.step)
 
-          num_game = 0
-          total_reward = 0.
-          self.total_loss = 0.
-          self.total_q = 0.
-          self.update_count = 0
-          ep_reward = 0.
-          ep_rewards = []
-          actions = []
+        num_game = 0
+        total_reward = 0.
+        self.total_loss = 0.
+        self.total_q = 0.
+        self.update_count = 0
+        ep_reward = 0.
+        ep_rewards = []
+        actions = []
 
   def predict(self, s_t, test_ep=None):
     ep = test_ep or (self.ep_end +
@@ -159,9 +328,12 @@ class Agent(BaseModel):
     self.history.add(screen)
     self.memory.add(screen, reward, action, terminal)
 
-    if self.step > self.learn_start:
-      if self.step % self.train_frequency == 0:
+    if self.step > self.learn_start-1: # learn_start = 1
+    #if self.step > self.history_length-1:
+      if self.step % self.train_frequency == 0: # train_frequency 1
+        print('training...')
         self.q_learning_mini_batch()
+        print('done.')
 
       if self.step % self.target_q_update_step == self.target_q_update_step - 1:
         self.update_target_q_network()
@@ -219,14 +391,14 @@ class Agent(BaseModel):
             [None, self.history_length, self.screen_height, self.screen_width], name='s_t')
 
       self.l1, self.w['l1_w'], self.w['l1_b'] = conv2d(self.s_t,
-          32, [8, 8], [4, 4], initializer, activation_fn, self.cnn_format, name='l1')
+          32, [8, 8], [4, 4], initializer, activation_fn, self.cnn_format, name='l1') # ?, 32, 119, 209
       self.l2, self.w['l2_w'], self.w['l2_b'] = conv2d(self.l1,
-          64, [4, 4], [2, 2], initializer, activation_fn, self.cnn_format, name='l2')
+          64, [4, 4], [2, 2], initializer, activation_fn, self.cnn_format, name='l2') # ?, 64,58, 103
       self.l3, self.w['l3_w'], self.w['l3_b'] = conv2d(self.l2,
-          64, [3, 3], [1, 1], initializer, activation_fn, self.cnn_format, name='l3')
+          64, [3, 3], [1, 1], initializer, activation_fn, self.cnn_format, name='l3') # ? 64, 56, 101
 
       shape = self.l3.get_shape().as_list()
-      self.l3_flat = tf.reshape(self.l3, [-1, reduce(lambda x, y: x * y, shape[1:])])
+      self.l3_flat = tf.reshape(self.l3, [-1, reduce(lambda x, y: x * y, shape[1:])]) # ?, 361984
 
       if self.dueling:
         self.value_hid, self.w['l4_val_w'], self.w['l4_val_b'] = \
@@ -245,13 +417,13 @@ class Agent(BaseModel):
         self.q = self.value + (self.advantage - 
           tf.reduce_mean(self.advantage, reduction_indices=1, keep_dims=True))
       else:
-        self.l4, self.w['l4_w'], self.w['l4_b'] = linear(self.l3_flat, 512, activation_fn=activation_fn, name='l4')
+        self.l4, self.w['l4_w'], self.w['l4_b'] = linear(self.l3_flat, 512, activation_fn=activation_fn, name='l4') # ?, 512
         self.q, self.w['q_w'], self.w['q_b'] = linear(self.l4, self.action_size, name='q')
 
-      self.q_action = tf.argmax(self.q, dimension=1)
+      self.q_action = tf.argmax(self.q, dimension=1) # ?, 10000
 
       q_summary = []
-      avg_q = tf.reduce_mean(self.q, 0)
+      avg_q = tf.reduce_mean(self.q, 0) # 10000
       for idx in xrange(self.action_size):
         q_summary.append(tf.summary.histogram('q/%s' % idx, avg_q[idx]))
       self.q_summary = tf.summary.merge(q_summary, 'q_summary')
@@ -266,13 +438,13 @@ class Agent(BaseModel):
             [None, self.history_length, self.screen_height, self.screen_width], name='target_s_t')
 
       self.target_l1, self.t_w['l1_w'], self.t_w['l1_b'] = conv2d(self.target_s_t, 
-          32, [8, 8], [4, 4], initializer, activation_fn, self.cnn_format, name='target_l1')
+          32, [8, 8], [4, 4], initializer, activation_fn, self.cnn_format, name='target_l1') # ? 32, 119, 209
       self.target_l2, self.t_w['l2_w'], self.t_w['l2_b'] = conv2d(self.target_l1,
-          64, [4, 4], [2, 2], initializer, activation_fn, self.cnn_format, name='target_l2')
+          64, [4, 4], [2, 2], initializer, activation_fn, self.cnn_format, name='target_l2') # ? 64, 58, 103
       self.target_l3, self.t_w['l3_w'], self.t_w['l3_b'] = conv2d(self.target_l2,
-          64, [3, 3], [1, 1], initializer, activation_fn, self.cnn_format, name='target_l3')
+          64, [3, 3], [1, 1], initializer, activation_fn, self.cnn_format, name='target_l3') # ? 64, 56, 101
 
-      shape = self.target_l3.get_shape().as_list()
+      shape = self.target_l3.get_shape().as_list() # ? , 361984
       self.target_l3_flat = tf.reshape(self.target_l3, [-1, reduce(lambda x, y: x * y, shape[1:])])
 
       if self.dueling:
@@ -293,9 +465,9 @@ class Agent(BaseModel):
           tf.reduce_mean(self.t_advantage, reduction_indices=1, keep_dims=True))
       else:
         self.target_l4, self.t_w['l4_w'], self.t_w['l4_b'] = \
-            linear(self.target_l3_flat, 512, activation_fn=activation_fn, name='target_l4')
+            linear(self.target_l3_flat, 512, activation_fn=activation_fn, name='target_l4') # ?, 512
         self.target_q, self.t_w['q_w'], self.t_w['q_b'] = \
-            linear(self.target_l4, self.action_size, name='target_q')
+            linear(self.target_l4, self.action_size, name='target_q') # ?, 10000
 
       self.target_q_idx = tf.placeholder('int32', [None, None], 'outputs_idx')
       self.target_q_with_idx = tf.gather_nd(self.target_q, self.target_q_idx)
@@ -439,4 +611,5 @@ class Agent(BaseModel):
       #gym.upload(gym_dir, writeup='https://github.com/devsisters/DQN-tensorflow', api_key='')
 
   def convert_screen_to_numpy_array(self, screen_bytes):
-    return np.frombuffer(screen_bytes, dtype='>u4').reshape(self.screen_shape)
+    #return np.frombuffer(screen_bytes, dtype='>u4').reshape(self.screen_shape)
+    return np.frombuffer(screen_bytes, dtype='>u4').reshape(self.action_screen_shape)

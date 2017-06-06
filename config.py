@@ -1,15 +1,16 @@
 class AgentConfig(object):
-  scale = 10000
+  scale = 1000
   display = False
 
-  # max_step = 5000 * scale
+  #max_step = 5000 * scale
+  max_step = 10
   memory_size = 100 * scale
 
   batch_size = 32
   random_start = 30
   cnn_format = 'NCHW'
   discount = 0.99
-  target_q_update_step = 1 * scale
+  target_q_update_step = 1 #* scale
   learning_rate = 0.00025
   learning_rate_minimum = 0.00025
   learning_rate_decay = 0.96
@@ -19,9 +20,9 @@ class AgentConfig(object):
   ep_start = 1.
   ep_end_t = memory_size
 
-  history_length = 4
-  train_frequency = 4
-  learn_start = 5. * scale
+  history_length = 2
+  train_frequency = 2#4
+  learn_start = 2#5. * scale
 
   min_delta = -1
   max_delta = 1
@@ -29,14 +30,14 @@ class AgentConfig(object):
   double_q = False
   dueling = False
 
-  _test_step = 5 * scale
-  _save_step = _test_step * 10
+  _test_step = 2#5 * scale
+  _save_step = _test_step * 1#10
 
 class EnvironmentConfig(object):
   env_name = 'AngryBird'
 
-  # screen_width  = 84
-  # screen_height = 84
+  screen_width  = 84
+  screen_height = 84
   max_reward = 1.
   min_reward = -1.
 
