@@ -4,6 +4,7 @@ import os
 import random
 import logging
 import numpy as np
+import cv2
 
 from .utils import save_npy, load_npy
 
@@ -28,6 +29,10 @@ class ReplayMemory:
     self.poststates = np.empty((self.batch_size, self.history_length) + self.dims, dtype=np.float16)
 
   def add(self, screen, reward, action, terminal):
+
+    screen = np.array(screen, dtype=np.uint8)
+    screen = cv2.resize(screen,(84,84), interpolation=cv2.INTER_CUBIC)
+
     assert screen.shape == self.dims
     # NB! screen is post-state, after action and reward
     self.actions[self.current] = action
@@ -52,6 +57,7 @@ class ReplayMemory:
 
   def sample(self):
     # memory must include poststate, prestate and history
+    print('sample(),self.count:', self.count, 'self.histroy_length:', self.history_length)
     assert self.count > self.history_length
     # sample random indexes
     indexes = []

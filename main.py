@@ -1,11 +1,12 @@
 from __future__ import print_function
+import os
 import random
 import tensorflow as tf
 
 from dqn.agent import Agent
 from dqn.environment import GymEnvironment, SimpleGymEnvironment
 from config import get_config
-from py4j.java_gateway import JavaGateway
+from py4j.java_gateway import JavaGateway, GatewayParameters
 
 flags = tf.app.flags
 
@@ -26,6 +27,9 @@ flags.DEFINE_boolean('is_train', True, 'Whether to do training or testing')
 flags.DEFINE_integer('random_seed', 123, 'Value of random seed')
 
 FLAGS = flags.FLAGS
+
+os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"   # see issue #152
+os.environ["CUDA_VISIBLE_DEVICES"]="1"
 
 # Set random seed
 tf.set_random_seed(FLAGS.random_seed)
@@ -51,6 +55,8 @@ def main(_):
     config = get_config(FLAGS) or FLAGS
 
     gateway = JavaGateway()
+    #gateway = JavaGateway(gateway_parameters=GatewayParameters(address='143.248.158.216',port=25333))
+    #gateway = JavaGateway(gateway_parameters=GatewayParameters(address='143.248.158.216'))
     actionRobot = gateway.entry_point
 
     if not tf.test.is_gpu_available() and FLAGS.use_gpu:
@@ -61,14 +67,22 @@ def main(_):
 
     # (Jeehoon): For now, we only train the agent of level 1
     print ("Building Agent..")
-    agent = Agent(config, actionRobot, sess, 1)
+    stage = 1
+    agent = Agent(config, actionRobot, sess, stage)
 
-    if FLAGS.is_train:
-      print ("Training the agent..")
-      agent.train()
-    else:
-      print ("Playing the agent..")
-      agent.play()
+    for step in range(1000) :
+      if FLAGS.is_train:
+        print ("Training the agent..")
+        agent.train_ep(stage)
+      else:
+        print ("Playing the agent..")
+        agent.play()
+
+      #print('step:', step ,'stage:', stage)
+      stage += 1
+      if stage == 7:
+        stage = 1
+
 
 if __name__ == '__main__':
   tf.app.run()
