@@ -26,26 +26,14 @@ class Agent(BaseModel):
     actionRobot.loadLevel(stage)
     self.action_size = 100 * 100
     config.max_step = actionRobot.getMaxStep()
-    #self.max_step = config.max_step
-    #config.screen_height = actionRobot.getScreenHeight() # default 84
-    #config.screen_width = actionRobot.getScreenWidth() # default 84
     super(Agent, self).__init__(config)
 
-    #self.screen_shape = (actionRobot.getScreenHeight(), actionRobot.getScreenWidth()) # 480 x 840
     self.screen_shape = (config.screen_height, config.screen_width)
     self.action_screen_shape = (480, 840)
     self.history = History(self.config)
-    #screen = self.convert_screen_to_numpy_array(actionRobot.getScreen())
-    #screen = np.array(screen, dtype=np.uint8)
 
-    #self.screen = cv2.resize(screen, (config.screen_height,config.screen_width), interpolation=cv2.INTER_CUBIC)
-    #self.history.add(self.convert_screen_to_numpy_array(actionRobot.getScreen())) # TODO: remove.
     self.history.add(actionRobot.getScreen())
-    #self.history_length = config.history_length
-    #self.history.add(self.screen)
-    #self.model_dir = './logs'
     self.memory = ReplayMemory(self.config, self.model_dir)
-    #self.learn_start = 3
     self.maximum_reward = 10000
 
     with tf.variable_scope('step'):
@@ -54,7 +42,7 @@ class Agent(BaseModel):
       self.step_assign_op = self.step_op.assign(self.step_input)
 
     print ("Building Deep Q Network..")
-    self.build_dqn()
+    self.build_dqn(self.stage)
 
   def train_ep(self, stage, epsilon=None):
     # initialization
@@ -120,7 +108,8 @@ class Agent(BaseModel):
             or str(self.agent.getGameState()) == 'LOST' \
             or reward > 8000: # The stage is finished
       print('step:', self.step, 'test_step:', self.test_step)
-      self.save_model(self.step + 1) # TODO(jeehoon): Need to check 'self.step + 1'
+      # self.save_model(self.step + 1, stage) # TODO(jeehoon): Need to check 'self.step + 1'
+      self.save_model(stage)
       print('model saved and load level')
       self.agent.loadLevel(self.stage)
 
@@ -194,7 +183,7 @@ class Agent(BaseModel):
     self.total_q += q_t.mean()
     self.update_count += 1
 
-  def build_dqn(self):
+  def build_dqn(self, stage):
     self.w = {}
     self.t_w = {}
 
@@ -349,7 +338,7 @@ class Agent(BaseModel):
 
     self._saver = tf.train.Saver(self.w.values() + [self.step_op], max_to_keep=30)
 
-    self.load_model()
+    self.load_model(stage)
     self.update_target_q_network()
 
   def update_target_q_network(self):
