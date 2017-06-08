@@ -7,11 +7,11 @@ class Environment(object):
     self.env = gym.make(config.env_name)
     self.env.reset()
 
-    screen_width, screen_length, self.action_repeat, self.random_start = \
-        config.screen_width, config.screen_length, config.action_repeat, config.random_start
+    screen_width, screen_height, self.action_repeat, self.random_start = \
+        config.screen_width, config.screen_height, config.action_repeat, config.random_start
 
     self.display = config.display
-    self.dims = (screen_width, screen_length)
+    self.dims = (screen_width, screen_height)
 
     self._screen = None
     self.reward = 0

@@ -51,7 +51,7 @@ class BaseModel(object):
       return False
 
   def network_dirpath(self, stage=None):
-    return self.checkpoint_dir + ("/" + stage) if stage else ""
+    return self.checkpoint_dir + ("stage-" + str(stage) + "/") if stage else ""
 
   @property
   def checkpoint_dir(self):

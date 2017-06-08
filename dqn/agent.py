@@ -44,7 +44,7 @@ class Agent(BaseModel):
     print ("Building Deep Q Network..")
     self.build_dqn(self.stage)
 
-  def train_ep(self, stage, epsilon=None):
+  def train_ep(self, stage, epsilon=None, train_iter=None):
     # initialization
     self.update_count = 0
     self.total_loss, self.total_q = 0., 0.
@@ -70,7 +70,7 @@ class Agent(BaseModel):
     for self.step in tqdm(range(start_step, self.max_step), ncols=70, initial=start_step):
       # 1. predict
       self.step_input = self.step
-      action = self.predict(self.history.get(), epsilon) # Pick action based on Q-Network
+      action = self.predict(self.history.get(), test_ep=epsilon, train_iter=train_iter) # Pick action based on Q-Network
 
       # 2. act TODO(jeehoon): get sample trajectories from NaiveAgent
       angle = action / 100
@@ -113,11 +113,18 @@ class Agent(BaseModel):
       print('model saved and load level')
       self.agent.loadLevel(self.stage)
 
-  def predict(self, s_t, test_ep=None):
+  def predict(self, s_t, test_ep=None, train_iter=None):
     #ep = test_ep or (self.ep_end +
     #    max(0., (self.ep_start - self.ep_end) # (1.0 - 0.1) * ( 4 - max(0, 2 - 2))/4
     #      * (self.ep_end_t - max(0., self.step - self.learn_start)) / self.ep_end_t))
-    ep = test_ep or (self.ep_start - self.ep_end)
+
+    print ("config.train_max_iter:",self.config.train_max_iter,
+           "self.train_max_iter:",self.train_max_iter,
+           "self.ep_start:", str(self.ep_start),
+           "test_ep:", str(test_ep),
+           "train_iter:", str(train_iter))
+    ep = test_ep or self.ep_end + \
+                    max(0., (self.ep_start - self.ep_end) * (self.train_max_iter - train_iter) / self.train_max_iter) # ep: prob. to pick random action
     ep_rnd = random.random()
     if ep_rnd < ep:
       action = random.randrange(self.action_size)
