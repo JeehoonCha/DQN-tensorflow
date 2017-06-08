@@ -15,6 +15,10 @@ from .replay_memory import ReplayMemory
 from .ops import linear, conv2d, clipped_error
 from .utils import get_time, save_pkl, load_pkl
 
+VALUE_TO_NORMALIZE = 100
+MAX_ANGLE = 90
+MAX_POWER = 100
+
 class Agent(BaseModel):
   def __init__(self, config, actionRobot, sess, stage):
     print ("config=" + str(config))
@@ -24,7 +28,7 @@ class Agent(BaseModel):
     self.agent = actionRobot
 
     actionRobot.loadLevel(stage)
-    self.action_size = 100 * 100
+    self.action_size = MAX_ANGLE * MAX_POWER
     config.max_step = actionRobot.getMaxStep()
     super(Agent, self).__init__(config)
 
@@ -41,8 +45,13 @@ class Agent(BaseModel):
       self.step_input = tf.placeholder('int32', None, name='step_input')
       self.step_assign_op = self.step_op.assign(self.step_input)
 
+    # to pick normally distributed random angle and power (based on the guideline given by the JavaShootingAgent)
+    # see predict() to find details
+    self.random_normal_mean = 0
+    self.random_normal_sigma = 0.1
+
     print ("Building Deep Q Network..")
-    # self.build_dqn(self.stage)
+    self.build_dqn(self.stage)
 
   def train_ep(self, stage, epsilon=None, train_iter=None):
     # initialization
@@ -50,6 +59,7 @@ class Agent(BaseModel):
     self.total_loss, self.total_q = 0., 0.
 
     self.stage = stage
+    start_step = self.step_op.eval()
 
     # agent load the specific stage
     observation = self.agent.loadLevel(self.stage)
@@ -62,21 +72,20 @@ class Agent(BaseModel):
     self.history.add(screen)
 
     print('stage:',stage,
+          ' start_step:', start_step,
           'max_step:', self.max_step,
           ' state:', self.agent.getGameState())
 
-    for self.step in tqdm(range(1, self.max_step), ncols=70, initial=1):
+    for self.step in tqdm(range(start_step, self.max_step), ncols=70, initial=start_step):
       # 1. predict
       self.step_input = self.step
-      action = self.predict(self.history.get(), test_ep=epsilon, train_iter=train_iter) # Pick action based on Q-Network
 
-      # 2. act TODO(jeehoon): get sample trajectories from NaiveAgent
-      # angle = action / 100
-      # power = action % 100
-      shootInfo = self.agent.getShootInfo()
-      angle = int(shootInfo.getAngle())
-      power = int(shootInfo.getPower())
-      action = angle * 100 + power
+      # Pick action based on the Q-Network, or normally-distributed random action
+      action = self.predict(self.history.get(), test_ep=epsilon, train_iter=train_iter)
+
+      # 2. act
+      angle = action / MAX_POWER
+      power = action % MAX_POWER
       tabInterval = 200 # TODO(jeehoon): need to modify
       print('angle:',angle,
             'power:',power,
@@ -111,7 +120,7 @@ class Agent(BaseModel):
             or reward > 8000: # The stage is finished
       print('step:', self.step, 'test_step:', self.test_step)
       # self.save_model(self.step + 1, stage) # TODO(jeehoon): Need to check 'self.step + 1'
-      # self.save_model(stage)
+      self.save_model(stage)
       print('model saved and load level')
       self.agent.loadLevel(self.stage)
 
@@ -128,8 +137,19 @@ class Agent(BaseModel):
     ep = test_ep or self.ep_end + \
                     max(0., (self.ep_start - self.ep_end) * (self.train_max_iter - train_iter) / self.train_max_iter) # ep: prob. to pick random action
     ep_rnd = random.random()
-    if ep_rnd < ep:
-      action = random.randrange(self.action_size)
+    if ep_rnd < ep: # pick normally distributed random value
+      """
+      Here, np.random.normal(0, 0.1) will give value (approximately) between -0.3 and +0.3
+      check the example: https://docs.scipy.org/doc/numpy/reference/generated/numpy.random.normal.html
+      """
+      shootInfo = self.agent.getShootInfo() # JavaShootingAgent gives angle and power info
+      angle = shootInfo.getAngle()
+      angle += np.random.normal(self.random_normal_mean, self.random_normal_sigma) * 100 # normally distributed value
+      angle = min(angle, MAX_ANGLE) # angle cannot exceed MAX_ANGLE
+      power = shootInfo.getPower()
+      power += np.random.normal(self.random_normal_mean, self.random_normal_sigma) * 100 # normally distributed value
+      power = min(power, MAX_POWER) # power cannot exceed MAX_POWER
+      action = angle * MAX_POWER + power
     else:
       action = self.q_action.eval({self.s_t: [s_t]})[0]
 
@@ -150,12 +170,11 @@ class Agent(BaseModel):
     #if self.step > self.history_length-1:
       if self.step % self.train_frequency == 0: # train_frequency 1
         print('training...')
-        # self.q_learning_mini_batch()
+        self.q_learning_mini_batch()
         print('done.')
 
       if self.step % self.target_q_update_step == self.target_q_update_step - 1:
-        # self.update_target_q_network()
-        pass
+        self.update_target_q_network()
 
   def q_learning_mini_batch(self):
     if self.memory.count < self.history_length:
