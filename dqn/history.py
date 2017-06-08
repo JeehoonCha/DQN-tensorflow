@@ -6,7 +6,7 @@ class History:
     self.cnn_format = config.cnn_format
 
     batch_size, history_length, screen_height, screen_width = \
-        config.batch_size, config.history_length, config.state_length, config.state_width
+        config.batch_size, config.history_length, config.screen_length, config.screen_width
 
     #self.history = np.zeros(
     #    [history_length, screen_height, screen_width], dtype=np.int32)

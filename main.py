@@ -47,7 +47,6 @@ def calc_gpu_fraction(fraction_string):
   return fraction
 
 def main(_):
-  FLAGS.use_gpu = False
   gpu_options = tf.GPUOptions(
       per_process_gpu_memory_fraction=calc_gpu_fraction(FLAGS.gpu_fraction))
 

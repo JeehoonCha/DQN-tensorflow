@@ -16,10 +16,10 @@ class ReplayMemory:
     self.memory_size = config.memory_size
     self.actions = np.empty(self.memory_size, dtype=np.uint8)
     self.rewards = np.empty(self.memory_size, dtype=np.integer)
-    self.screens = np.empty((self.memory_size, config.state_length, config.state_width), dtype=np.float16)
+    self.screens = np.empty((self.memory_size, config.screen_length, config.screen_width), dtype=np.float16)
     self.terminals = np.empty(self.memory_size, dtype=np.bool)
     self.history_length = config.history_length
-    self.dims = (config.state_length, config.state_width)
+    self.dims = (config.screen_length, config.screen_width)
     self.batch_size = config.batch_size
     self.count = 0
     self.current = 0
