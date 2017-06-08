@@ -63,13 +63,14 @@ def main(_):
       config.cnn_format = 'NHWC'
 
     # (Jeehoon): For now, we only train the agent of level 1
-    for stage in xrange(1,21) :
+    # for stage in range(21) :
+    for stage in xrange(2,21) :
       print ("Building Agent.. stage:" + str(stage))
       agent = Agent(config, actionRobot, sess, stage)
       if FLAGS.is_train:
-        for train_iter in range(1000):
+        for train_iter in range(config.train_max_iter):
           print ("Training the agent.. train_iter:" + str(train_iter) + " (stage:" + str(stage) + ")")
-          agent.train_ep(stage)
+          agent.train_ep(stage, train_iter=train_iter)
       else:
         print ("Playing the agent..")
         agent.play(stage, test_ep=0)
