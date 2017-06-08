@@ -75,7 +75,7 @@ def main(_):
         agent.train_ep(stage)
       else:
         print ("Playing the agent..")
-        agent.play()
+        agent.play(stage, test_ep=0)
 
       #print('step:', step ,'stage:', stage)
       stage += 1
