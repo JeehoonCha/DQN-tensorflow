@@ -46,6 +46,7 @@ class Agent(BaseModel):
     #self.model_dir = './logs'
     self.memory = ReplayMemory(self.config, self.model_dir)
     #self.learn_start = 3
+    self.maximum_reward = 10000
 
     with tf.variable_scope('step'):
       self.step_op = tf.Variable(0, trainable=False, name='step')
@@ -107,6 +108,19 @@ class Agent(BaseModel):
 
         screen = self.convert_screen_to_numpy_array(observation.getScreen())
         reward = observation.getReward()
+
+        if self.maximum_reward < reward :
+          reward = 10000
+
+        if reward == 0 :
+          reward = -1.0
+        elif str(self.agent.getGameState()) == 'WON':
+          reward = 1.0
+        else :
+          print('maximum_reward:', self.maximum_reward, 'reward:', reward)
+          reward = reward / float(self.maximum_reward)
+
+        #reward = float_reward.astype(int)
         #terminal = observation.getTerminal()
         print('step:',self.step, '4.reward:', reward, ' state:', self.agent.getGameState())
 
@@ -140,9 +154,9 @@ class Agent(BaseModel):
       #if self.step == self.max_step - 1 or terminal:
         print('saving...1')
         print('step % test_step:', self.step % self.test_step, 'test_step:', self.test_step - 1)
-        avg_reward = total_reward / self.test_step
-        avg_loss = self.total_loss / self.update_count
-        avg_q = self.total_q / self.update_count
+        #avg_reward = total_reward / self.test_step
+        #avg_loss = self.total_loss / self.update_count
+        #avg_q = self.total_q / self.update_count
         print('saving...2')
         try:
           max_ep_reward = np.max(ep_rewards)
@@ -151,8 +165,8 @@ class Agent(BaseModel):
         except:
           max_ep_reward, min_ep_reward, avg_ep_reward = 0, 0, 0
 
-        print('\navg_r: %.4f, avg_l: %.6f, avg_q: %3.6f, avg_ep_r: %.4f, max_ep_r: %.4f, min_ep_r: %.4f, # game: %d' \
-            % (avg_reward, avg_loss, avg_q, avg_ep_reward, max_ep_reward, min_ep_reward, num_game))
+        #print('\navg_r: %.4f, avg_l: %.6f, avg_q: %3.6f, avg_ep_r: %.4f, max_ep_r: %.4f, min_ep_r: %.4f, # game: %d' \
+        #    % (avg_reward, avg_loss, avg_q, avg_ep_reward, max_ep_reward, min_ep_reward, num_game))
 
         if max_avg_ep_reward * 0.9 <= avg_ep_reward:
           #self.step_assign_op.eval({self.step_input: self.step + 1})
@@ -312,9 +326,9 @@ class Agent(BaseModel):
         actions = []
 
   def predict(self, s_t, test_ep=None):
-    ep = test_ep or (self.ep_end +
-        max(0., (self.ep_start - self.ep_end) # (1.0 - 0.1) * ( 4 - max(0, 2 - 2))/4
-          * (self.ep_end_t - max(0., self.step - self.learn_start)) / self.ep_end_t))
+    #ep = test_ep or (self.ep_end +
+    #    max(0., (self.ep_start - self.ep_end) # (1.0 - 0.1) * ( 4 - max(0, 2 - 2))/4
+    #      * (self.ep_end_t - max(0., self.step - self.learn_start)) / self.ep_end_t))
     ep = test_ep or (self.ep_start - self.ep_end)
     ep_rnd = random.random()
     if ep_rnd < ep:
@@ -327,7 +341,10 @@ class Agent(BaseModel):
     return action
 
   def observe(self, screen, reward, action, terminal):
+
     reward = max(self.min_reward, min(self.max_reward, reward))
+
+    #print('reward:',reward)
 
     self.history.add(screen)
     self.memory.add(screen, reward, action, terminal)
