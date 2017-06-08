@@ -56,274 +56,73 @@ class Agent(BaseModel):
     print ("Building Deep Q Network..")
     self.build_dqn()
 
-  def train_ep(self, stage):
-
+  def train_ep(self, stage, epsilon=None):
     # initialization
-    num_game, self.update_count, ep_reward = 0, 0, 0.
-    total_reward, self.total_loss, self.total_q = 0., 0., 0.
-    max_avg_ep_reward = 0
-    ep_rewards, actions = [], []
-
-    # for training stage 1
-    for ep in range(3):
-      self.stage = stage
-
-      start_step = self.step_op.eval()
-
-      # agent load the specific stage
-      observation = self.agent.loadLevel(self.stage)
-      self.max_step = self.agent.getNumBirds()
-      if self.max_step >= 6 :
-        self.max_step = 4
-      #self.max_step = 4
-      screen = self.convert_screen_to_numpy_array(observation.getScreen())
-
-      reward = observation.getReward()
-      terminal = observation.getTerminal()
-
-      print('ep_iter:',ep ,'stage:',stage,' start_step:', start_step, 'max_step:', self.max_step, ' state:', self.agent.getGameState()) #, 'state:', self.agent.getState())
-
-      for _ in range(self.history_length): # history_length = 3
-        self.history.add(screen)
-
-      for self.step in tqdm(range(start_step, self.max_step), ncols=70, initial=start_step):
-
-        #if self.agent.getGameState() == 'WON':
-        #  print('state = WON.')
-        print('step:',self.step, '1.state:', self.agent.getGameState())
-
-        # 1. predict
-        self.step_input = self.step
-        action = self.predict(self.history.get())
-        print('step:',self.step, '2.predict ', 'state:', self.agent.getGameState())
-
-        # 2. act
-        angle = action / 100
-        power = action % 100
-        #power = 90
-        tabInterval = 200
-
-        observation = self.agent.shoot(angle, power, tabInterval)
-        print('step:',self.step, '3.action')
-
-        screen = self.convert_screen_to_numpy_array(observation.getScreen())
-        reward = observation.getReward()
-
-        if self.maximum_reward < reward :
-          reward = 10000
-
-        if reward == 0 :
-          reward = -1.0
-        elif str(self.agent.getGameState()) == 'WON':
-          reward = 1.0
-        else :
-          print('maximum_reward:', self.maximum_reward, 'reward:', reward)
-          reward = reward / float(self.maximum_reward)
-
-        #reward = float_reward.astype(int)
-        #terminal = observation.getTerminal()
-        print('step:',self.step, '4.reward:', reward, ' state:', self.agent.getGameState())
-
-        print('step:',self.step,'max_step:',self.max_step, 'angle:', angle, 'power:', power, 'reward:', reward,' state:', self.agent.getGameState() )
-
-        # 3. observe
-        terminal = observation.getTerminal()
-        self.observe(screen, reward, action, terminal)
-        print('step:',self.step, '5.terminal:', terminal, ' state:', self.agent.getGameState())
-
-        #if terminal:
-        #  observation = self.agent.loadLevel(self.stage)
-        #  screen = self.convert_screen_to_numpy_array(observation.getScreen())
-        #  screen = np.array(screen, dtype=np.uint8)
-        #  screen = cv2.resize(screen,self.screen_shape, interpolation=cv2.INTER_CUBIC)
-        #  reward = observation.getReward()
-        #  terminal = observation.getTerminal()
-
-        #  num_game += 1
-        #  ep_rewards.append(ep_reward)
-        #  ep_reward = 0.
-        #else:       #  ep_reward += reward
-        ep_rewards.append(reward)
-
-        actions.append(action)
-        total_reward += reward
-        if str(self.agent.getGameState()) == 'WON'or str(self.agent.getGameState()) == 'LOST' or reward > 8000 :
-          break
-
-      if self.step == self.max_step - 1 or str(self.agent.getGameState()) == 'WON' or str(self.agent.getGameState()) == 'LOST' or reward > 8000:
-      #if self.step == self.max_step - 1 or terminal:
-        print('saving...1')
-        print('step % test_step:', self.step % self.test_step, 'test_step:', self.test_step - 1)
-        #avg_reward = total_reward / self.test_step
-        #avg_loss = self.total_loss / self.update_count
-        #avg_q = self.total_q / self.update_count
-        print('saving...2')
-        try:
-          max_ep_reward = np.max(ep_rewards)
-          min_ep_reward = np.min(ep_rewards)
-          avg_ep_reward = np.mean(ep_rewards)
-        except:
-          max_ep_reward, min_ep_reward, avg_ep_reward = 0, 0, 0
-
-        #print('\navg_r: %.4f, avg_l: %.6f, avg_q: %3.6f, avg_ep_r: %.4f, max_ep_r: %.4f, min_ep_r: %.4f, # game: %d' \
-        #    % (avg_reward, avg_loss, avg_q, avg_ep_reward, max_ep_reward, min_ep_reward, num_game))
-
-        if max_avg_ep_reward * 0.9 <= avg_ep_reward:
-          #self.step_assign_op.eval({self.step_input: self.step + 1})
-          self.save_model(self.step + 1)
-
-          max_avg_ep_reward = max(max_avg_ep_reward, avg_ep_reward)
-
-        print('saving...3')
-        self.agent.loadLevel(self.stage)
-
-        #if self.step >= 3:
-        #self.inject_summary({
-        #    'average.reward': avg_reward,
-        #    'average.loss': avg_loss,
-        #    'average.q': avg_q,
-        #    'episode.max reward': max_ep_reward,
-        #    'episode.min reward': min_ep_reward,
-        #    'episode.avg reward': avg_ep_reward,
-        #    'episode.num of game': num_game,
-        #    'episode.rewards': ep_rewards,
-        #    'episode.actions': actions,
-        #    'training.learning_rate': self.learning_rate_op.eval({self.learning_rate_step: self.step}),
-        #  }, self.step)
-
-        #num_game = 0
-        #total_reward = 0.
-        #self.total_loss = 0.
-        #self.total_q = 0.
-        #self.update_count = 0
-        #ep_reward = 0.
-        #ep_rewards = []
-        #actions = []
-
-
-  def train(self, stage):
+    self.update_count = 0
+    self.total_loss, self.total_q = 0., 0.
 
     self.stage = stage
-    #self.max_step = self.agent.getMaxStep()
-
-    self.max_step = 100
-
     start_step = self.step_op.eval()
-    start_time = time.time()
 
-    num_game, self.update_count, ep_reward = 0, 0, 0.
-    total_reward, self.total_loss, self.total_q = 0., 0., 0.
-    max_avg_ep_reward = 0
-    ep_rewards, actions = [], []
-
+    # agent load the specific stage
     observation = self.agent.loadLevel(self.stage)
+    self.max_step = self.agent.getNumBirds()
+    if self.max_step >= 6 : # TODO(jeehoon): Sometimes the number of birds are wrong
+      self.max_step = 5
     screen = self.convert_screen_to_numpy_array(observation.getScreen())
-    # resize
-    #screen = scipy.ndimage.zoom(screen, 2, order=3)
-    #screen = np.array(screen, dtype=np.uint8)
-    #screen = cv2.resize(screen,self.screen_shape, interpolation=cv2.INTER_CUBIC)
-
     reward = observation.getReward()
-    # action = observation.getAction()
     terminal = observation.getTerminal()
+    self.history.add(screen)
 
-    self.history_length = self.max_step
-
-    for _ in range(self.history_length): # history_length = 3
-      self.history.add(screen)
+    print('stage:',stage,
+          ' start_step:', start_step,
+          'max_step:', self.max_step,
+          ' state:', self.agent.getGameState())
 
     for self.step in tqdm(range(start_step, self.max_step), ncols=70, initial=start_step):
-      if self.step == self.learn_start: # learn_satart = 0
-        num_game, self.update_count, ep_reward = 0, 0, 0.
-        total_reward, self.total_loss, self.total_q = 0., 0., 0.
-        ep_rewards, actions = [], []
-
       # 1. predict
-      action = self.predict(self.history.get())
+      self.step_input = self.step
+      action = self.predict(self.history.get(), epsilon) # Pick action based on Q-Network
 
-      # 2. act
+      # 2. act TODO(jeehoon): get sample trajectories from NaiveAgent
       angle = action / 100
       power = action % 100
-      tabInterval = 0
+      tabInterval = 200 # TODO(jeehoon): need to modify
+      print('angle:',angle,
+            'power:',power,
+            'tabInterval:',tabInterval)
 
       observation = self.agent.shoot(angle, power, tabInterval)
       screen = self.convert_screen_to_numpy_array(observation.getScreen())
-      #screen = np.array(screen, dtype=np.uint8)
-      #screen = cv2.resize(screen,self.screen_shape, interpolation=cv2.INTER_CUBIC)
-
       reward = observation.getReward()
       terminal = observation.getTerminal()
+      print('step:',self.step,
+            'max_step:',self.max_step,
+            'reward:', reward,
+            'state:', self.agent.getGameState())
 
-      print('angle:', angle, 'power:', power, 'reward:', reward, 'terminal:', terminal)
+      reward = min(int(reward), self.maximum_reward) / self.maximum_reward
+      if reward <= 0: # The bird hits nothing
+        reward = -1.0
+      elif str(self.agent.getGameState()) == 'WON':
+        reward = 1.0
 
       # 3. observe
       self.observe(screen, reward, action, terminal)
 
-      if terminal:
-        observation = self.agent.loadLevel(self.stage)
-        screen = self.convert_screen_to_numpy_array(observation.getScreen())
-        screen = np.array(screen, dtype=np.uint8)
-        screen = cv2.resize(screen,self.screen_shape, interpolation=cv2.INTER_CUBIC)
-        reward = observation.getReward()
-        # action = observation.getAction()
-        terminal = observation.getTerminal()
+      if str(self.agent.getGameState()) == 'WON' \
+              or str(self.agent.getGameState()) == 'LOST' \
+              or reward > 8000 : # The stage is finished while there still some birds left.
+        break
 
-        num_game += 1
-        ep_rewards.append(ep_reward)
-        ep_reward = 0.
-      else:
-        ep_reward += reward
-
-      actions.append(action)
-      total_reward += reward
-
-      print('step:', self.step, 'learn_start:', self.learn_start)
-      #if self.step >= self.learn_start: # 0~2 >= 2
-      if self.step == self.max_step - 1:
-        print('step % test_step:', self.step % self.test_step, 'test_step:', self.test_step - 1)
-        #if self.step % self.test_step == self.test_step - 1: # step 2 / test_step 2 = test_step 2 - 1 = 1
-        avg_reward = total_reward / self.test_step
-        avg_loss = self.total_loss / self.update_count
-        avg_q = self.total_q / self.update_count
-
-        try:
-          max_ep_reward = np.max(ep_rewards)
-          min_ep_reward = np.min(ep_rewards)
-          avg_ep_reward = np.mean(ep_rewards)
-        except:
-          max_ep_reward, min_ep_reward, avg_ep_reward = 0, 0, 0
-
-        print('\navg_r: %.4f, avg_l: %.6f, avg_q: %3.6f, avg_ep_r: %.4f, max_ep_r: %.4f, min_ep_r: %.4f, # game: %d' \
-            % (avg_reward, avg_loss, avg_q, avg_ep_reward, max_ep_reward, min_ep_reward, num_game))
-
-        if max_avg_ep_reward * 0.9 <= avg_ep_reward:
-          self.step_assign_op.eval({self.step_input: self.step + 1})
-          self.save_model(self.step + 1)
-
-          max_avg_ep_reward = max(max_avg_ep_reward, avg_ep_reward)
-
-        #if self.step >= 3:
-        self.inject_summary({
-            'average.reward': avg_reward,
-            'average.loss': avg_loss,
-            'average.q': avg_q,
-            'episode.max reward': max_ep_reward,
-            'episode.min reward': min_ep_reward,
-            'episode.avg reward': avg_ep_reward,
-            'episode.num of game': num_game,
-            'episode.rewards': ep_rewards,
-            'episode.actions': actions,
-            'training.learning_rate': self.learning_rate_op.eval({self.learning_rate_step: self.step}),
-          }, self.step)
-
-        num_game = 0
-        total_reward = 0.
-        self.total_loss = 0.
-        self.total_q = 0.
-        self.update_count = 0
-        ep_reward = 0.
-        ep_rewards = []
-        actions = []
+    if self.step == self.max_step - 1 \
+            or str(self.agent.getGameState()) == 'WON' \
+            or str(self.agent.getGameState()) == 'LOST' \
+            or reward > 8000: # The stage is finished
+      print('step:', self.step, 'test_step:', self.test_step)
+      self.save_model(self.step + 1) # TODO(jeehoon): Need to check 'self.step + 1'
+      print('model saved and load level')
+      self.agent.loadLevel(self.stage)
 
   def predict(self, s_t, test_ep=None):
     #ep = test_ep or (self.ep_end +
@@ -585,52 +384,10 @@ class Agent(BaseModel):
     for summary_str in summary_str_lists:
       self.writer.add_summary(summary_str, self.step)
 
-  def play(self, n_step=10000, n_episode=100, test_ep=None, render=False):
+  def play(self, stage, n_step=10000, n_episode=100, test_ep=None, render=False):
     if test_ep == None:
       test_ep = self.ep_end
-
-    test_history = History(self.config)
-
-    if not self.display:
-      gym_dir = '/tmp/%s-%s' % (self.env_name, get_time())
-      self.agent.env.monitor.start(gym_dir)
-
-    best_reward, best_idx = 0, 0
-    for idx in xrange(n_episode):
-      screen, reward, action, terminal = self.agent.new_random_game()
-      current_reward = 0
-
-      for _ in range(self.history_length):
-        test_history.add(screen)
-
-      for t in tqdm(range(n_step), ncols=70):
-        # 1. predict
-        action = self.predict(test_history.get(), test_ep)
-
-        # 2. act
-        observation = self.agent.shoot(action / 100, action % 100, 0)
-        screen = self.convert_screen_to_numpy_array(observation.getScreen())
-        reward = observation.getReward()
-        terminal = observation.getTerminal()
-
-        # 3. observe
-        test_history.add(screen)
-
-        current_reward += reward
-        if terminal:
-          break
-
-      if current_reward > best_reward:
-        best_reward = current_reward
-        best_idx = idx
-
-      print("="*30)
-      print(" [%d] Best reward : %d" % (best_idx, best_reward))
-      print("="*30)
-
-    if not self.display:
-      self.agent.env.monitor.close()
-      #gym.upload(gym_dir, writeup='https://github.com/devsisters/DQN-tensorflow', api_key='')
+    self.train_ep(stage, test_ep)
 
   def convert_screen_to_numpy_array(self, screen_bytes):
     #return np.frombuffer(screen_bytes, dtype='>u4').reshape(self.screen_shape)

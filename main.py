@@ -67,7 +67,7 @@ def main(_):
 
     # (Jeehoon): For now, we only train the agent of level 1
     print ("Building Agent..")
-    stage = 1
+    stage = 10
     agent = Agent(config, actionRobot, sess, stage)
 
     for step in range(1000) :
@@ -76,7 +76,7 @@ def main(_):
         agent.train_ep(stage)
       else:
         print ("Playing the agent..")
-        agent.play()
+        agent.play(stage, test_ep=0)
 
       #print('step:', step ,'stage:', stage)
       stage += 1
