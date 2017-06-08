@@ -12,7 +12,6 @@ class Environment(object):
 
     self.display = config.display
     self.dims = (screen_width, screen_height)
-
     self._screen = None
     self.reward = 0
     self.terminal = True

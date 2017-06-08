@@ -47,7 +47,6 @@ def calc_gpu_fraction(fraction_string):
   return fraction
 
 def main(_):
-  FLAGS.use_gpu = False
   gpu_options = tf.GPUOptions(
       per_process_gpu_memory_fraction=calc_gpu_fraction(FLAGS.gpu_fraction))
 
@@ -55,8 +54,6 @@ def main(_):
     config = get_config(FLAGS) or FLAGS
 
     gateway = JavaGateway()
-    #gateway = JavaGateway(gateway_parameters=GatewayParameters(address='143.248.158.216',port=25333))
-    #gateway = JavaGateway(gateway_parameters=GatewayParameters(address='143.248.158.216'))
     actionRobot = gateway.entry_point
 
     if not tf.test.is_gpu_available() and FLAGS.use_gpu:
@@ -66,23 +63,16 @@ def main(_):
       config.cnn_format = 'NHWC'
 
     # (Jeehoon): For now, we only train the agent of level 1
-    print ("Building Agent..")
-    stage = 1
-    agent = Agent(config, actionRobot, sess, stage)
-
-    for step in range(1000) :
+    for stage in xrange(1,21) :
+      print ("Building Agent.. stage:" + str(stage))
+      agent = Agent(config, actionRobot, sess, stage)
       if FLAGS.is_train:
-        print ("Training the agent..")
-        agent.train_ep(stage)
+        for train_iter in range(1000):
+          print ("Training the agent.. train_iter:" + str(train_iter) + " (stage:" + str(stage) + ")")
+          agent.train_ep(stage)
       else:
         print ("Playing the agent..")
         agent.play(stage, test_ep=0)
-
-      #print('step:', step ,'stage:', stage)
-      stage += 1
-      if stage == 10:
-        stage = 1
-
 
 if __name__ == '__main__':
   tf.app.run()
