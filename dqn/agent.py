@@ -54,7 +54,7 @@ class Agent(BaseModel):
       self.step_assign_op = self.step_op.assign(self.step_input)
 
     print ("Building Deep Q Network..")
-    self.build_dqn()
+    # self.build_dqn()
 
   def train_ep(self, stage, epsilon=None):
     # initialization
@@ -82,11 +82,15 @@ class Agent(BaseModel):
     for self.step in tqdm(range(start_step, self.max_step), ncols=70, initial=start_step):
       # 1. predict
       self.step_input = self.step
-      action = self.predict(self.history.get(), epsilon) # Pick action based on Q-Network
+      # action = self.predict(self.history.get(), epsilon) # Pick action based on Q-Network
 
       # 2. act TODO(jeehoon): get sample trajectories from NaiveAgent
-      angle = action / 100
-      power = action % 100
+      # angle = action / 100
+      # power = action % 100
+      shootInfo = self.agent.getShootInfo()
+      angle = int(shootInfo.getAngle())
+      power = int(shootInfo.getPower())
+      action = angle * 100 + power
       tabInterval = 200 # TODO(jeehoon): need to modify
       print('angle:',angle,
             'power:',power,
