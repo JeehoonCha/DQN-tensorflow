@@ -79,7 +79,7 @@ def main(_):
 
       #print('step:', step ,'stage:', stage)
       stage += 1
-      if stage == 7:
+      if stage == 10:
         stage = 1
 
 
