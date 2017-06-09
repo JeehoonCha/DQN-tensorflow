@@ -15,6 +15,10 @@ from .replay_memory import ReplayMemory
 from .ops import linear, conv2d, clipped_error
 from .utils import get_time, save_pkl, load_pkl
 
+VALUE_TO_NORMALIZE = 100
+MAX_ANGLE = 90
+MAX_POWER = 100
+
 class Agent(BaseModel):
   def __init__(self, config, actionRobot, sess, stage):
     print ("config=" + str(config))
@@ -24,7 +28,7 @@ class Agent(BaseModel):
     self.agent = actionRobot
 
     actionRobot.loadLevel(stage)
-    self.action_size = 100 * 100
+    self.action_size = MAX_ANGLE * MAX_POWER
     config.max_step = actionRobot.getMaxStep()
     super(Agent, self).__init__(config)
 
@@ -34,12 +38,16 @@ class Agent(BaseModel):
 
     self.history.add(actionRobot.getScreen())
     self.memory = ReplayMemory(self.config, self.model_dir)
-    self.maximum_reward = 10000
+    self.maximum_reward = 16000
 
     with tf.variable_scope('step'):
       self.step_op = tf.Variable(0, trainable=False, name='step')
       self.step_input = tf.placeholder('int32', None, name='step_input')
       self.step_assign_op = self.step_op.assign(self.step_input)
+
+    self.random_normal_mean = 0
+    self.random_normal_sigma = 0.01
+
 
     print ("Building Deep Q Network..")
     self.build_dqn(self.stage)
@@ -54,6 +62,8 @@ class Agent(BaseModel):
 
     # agent load the specific stage
     observation = self.agent.loadLevel(self.stage)
+
+
     self.max_step = self.agent.getNumBirds()
     if self.max_step >= 6 : # TODO(jeehoon): Sometimes the number of birds are wrong
       self.max_step = 5
@@ -67,33 +77,37 @@ class Agent(BaseModel):
           'max_step:', self.max_step,
           ' state:', self.agent.getGameState())
 
-    for self.step in tqdm(range(start_step, self.max_step), ncols=70, initial=start_step):
+    #for self.step in tqdm(range(start_step, self.max_step), ncols=70, initial=start_step):
+    for self.step in range(start_step, self.max_step):
       # 1. predict
       self.step_input = self.step
       action = self.predict(self.history.get(), test_ep=epsilon, train_iter=train_iter) # Pick action based on Q-Network
 
       # 2. act TODO(jeehoon): get sample trajectories from NaiveAgent
-      angle = action / 100
-      power = action % 100
+      angle = action / MAX_POWER
+      power = action % MAX_POWER
       tabInterval = 200 # TODO(jeehoon): need to modify
       print('angle:',angle,
             'power:',power,
             'tabInterval:',tabInterval)
 
-      observation = self.agent.shoot(angle, power, tabInterval)
+      observation = self.agent.shoot(int(angle), int(power), tabInterval)
       screen = self.convert_screen_to_numpy_array(observation.getScreen())
       reward = observation.getReward()
       terminal = observation.getTerminal()
-      print('step:',self.step,
-            'max_step:',self.max_step,
-            'reward:', reward,
-            'state:', self.agent.getGameState())
 
-      reward = min(int(reward), self.maximum_reward) / self.maximum_reward
-      if reward <= 0: # The bird hits nothing
+      reward_score = reward
+      reward = min(int(reward), self.maximum_reward) / float(self.maximum_reward)
+      if reward_score <= 0: # The bird hits nothing
         reward = -1.0
       elif str(self.agent.getGameState()) == 'WON':
         reward = 1.0
+
+      print('step:',self.step,
+      'max_step:',self.max_step,
+      'reward_score:', reward_score,
+      'norm_reward:', reward,
+      'state:', self.agent.getGameState())
 
       # 3. observe
       self.observe(screen, reward, action, terminal)
@@ -128,10 +142,21 @@ class Agent(BaseModel):
     ep_rnd = random.random()
     if ep_rnd < ep:
       action = random.randrange(self.action_size)
+      print('################## predict random:', ep_rnd)
+      shootInfo = self.agent.getShootInfo() # JavaShootingAgent gives angle and power info
+      angle = shootInfo.getAngle()
+      angle += np.random.normal(self.random_normal_mean, self.random_normal_sigma) * 100 # normally distributed value
+      angle = min(angle, MAX_ANGLE) # angle cannot exceed MAX_ANGLE
+      power = shootInfo.getPower()
+      power += np.random.normal(self.random_normal_mean, self.random_normal_sigma) * 100 # normally distributed value
+      power = min(power, MAX_POWER) # power cannot exceed MAX_POWER
+      action = int(angle) * MAX_POWER + power
+      print('################## predicted action_angle from naive agent:', angle,' power:', power )
     else:
       action = self.q_action.eval({self.s_t: [s_t]})[0]
+      print('################## predict q-value:', ep)
 
-    print('##################to check randomness ep:', ep, 'random:', ep_rnd)
+
 
     return action
 

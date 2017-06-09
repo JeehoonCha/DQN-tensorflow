@@ -64,7 +64,7 @@ def main(_):
 
     # (Jeehoon): For now, we only train the agent of level 1
     # for stage in range(21) :
-    for stage in xrange(2,21) :
+    for stage in xrange(7,21) :
       print ("Building Agent.. stage:" + str(stage))
       agent = Agent(config, actionRobot, sess, stage)
       if FLAGS.is_train:
