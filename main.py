@@ -26,9 +26,6 @@ flags.DEFINE_boolean('display', False, 'Whether to do display the game screen or
 flags.DEFINE_boolean('is_train', True, 'Whether to do training or testing')
 flags.DEFINE_integer('random_seed', 123, 'Value of random seed')
 
-# Url to java client
-flags.DEFINE_string('url', default_value='localhost', 'IP Address to java agent client')
-
 FLAGS = flags.FLAGS
 
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"   # see issue #152
