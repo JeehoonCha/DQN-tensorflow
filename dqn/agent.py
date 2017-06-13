@@ -52,7 +52,7 @@ class Agent(BaseModel):
     self.n_action_value = 0
 
     print ("Building Deep Q Network..")
-    self.build_dqn(self.stage)
+    # self.build_dqn(self.stage)
 
   def train_ep(self, stage, epsilon=None, train_iter=None):
     # initialization
@@ -60,7 +60,8 @@ class Agent(BaseModel):
     self.total_loss, self.total_q = 0., 0.
 
     self.stage = stage
-    start_step = self.step_op.eval()
+    start_step = 1
+    # start_step = self.step_op.eval()
 
     # agent load the specific stage
     observation = self.agent.loadLevel(self.stage)
@@ -125,7 +126,7 @@ class Agent(BaseModel):
             or reward > 20000: # The stage is finished
       print('step:', self.step, 'test_step:', self.test_step)
       # self.save_model(self.step + 1, stage) # TODO(jeehoon): Need to check 'self.step + 1'
-      self.save_model(stage)
+      # self.save_model(stage)
       print('model saved and load level')
       self.agent.loadLevel(self.stage)
 

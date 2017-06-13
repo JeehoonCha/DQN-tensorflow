@@ -35,6 +35,11 @@ os.environ["CUDA_VISIBLE_DEVICES"]="1"
 tf.set_random_seed(FLAGS.random_seed)
 random.seed(FLAGS.random_seed)
 
+import argparse
+parser = argparse.ArgumentParser(description='argument parser for agent address')
+parser.add_argument('--url', type=str, help='IP address to java agent client')
+args = parser.parse_args()
+
 if FLAGS.gpu_fraction == '':
   raise ValueError("--gpu_fraction should be defined")
 
@@ -53,7 +58,7 @@ def main(_):
   with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
     config = get_config(FLAGS) or FLAGS
 
-    gateway = JavaGateway()
+    gateway = JavaGateway(gateway_parameters=GatewayParameters(address=args.url)) if args.url else JavaGateway()
     actionRobot = gateway.entry_point
 
     if not tf.test.is_gpu_available() and FLAGS.use_gpu:
@@ -70,7 +75,8 @@ def main(_):
       if FLAGS.is_train:
         for train_iter in range(config.train_max_iter):
           print ("Training the agent.. train_iter:" + str(train_iter) + " (stage:" + str(stage) + ")")
-          agent.train_ep(stage, train_iter=train_iter)
+          # agent.train_ep(stage, train_iter=train_iter)
+          agent.train_ep(stage, epsilon=1, train_iter=train_iter)
       else:
         print ("Playing the agent..")
         agent.play(stage, test_ep=0)
