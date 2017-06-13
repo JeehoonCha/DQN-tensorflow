@@ -393,7 +393,7 @@ class Agent(BaseModel):
   def play(self, stage, n_step=10000, n_episode=100, test_ep=None, render=False):
     if test_ep == None:
       test_ep = self.ep_end
-    self.train_ep(stage, test_ep)
+    return self.train_ep(stage, test_ep)
 
   def convert_screen_to_numpy_array(self, screen_bytes):
     return np.frombuffer(screen_bytes, dtype='>u4').reshape(self.origin_screen_shape)[
