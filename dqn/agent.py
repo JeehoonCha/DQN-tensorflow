@@ -3,6 +3,7 @@ import os
 import time
 import random
 import numpy as np
+from tqdm import tqdm
 import tensorflow as tf
 import scipy.ndimage
 import scipy.misc
@@ -76,7 +77,7 @@ class Agent(BaseModel):
           'max_step:', self.max_step,
           ' state:', self.agent.getGameState())
 
-    for self.step in range(start_step, self.max_step):
+    for self.step in tqdm(range(start_step, self.max_step), ncols=70, initial=start_step):
       # 1. predict
       self.step_input = self.step
 
