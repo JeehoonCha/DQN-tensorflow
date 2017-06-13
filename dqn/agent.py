@@ -3,7 +3,6 @@ import os
 import time
 import random
 import numpy as np
-from tqdm import tqdm
 import tensorflow as tf
 import scipy.ndimage
 import scipy.misc
@@ -51,7 +50,7 @@ class Agent(BaseModel):
     self.random_normal_sigma = 0.1
 
     print ("Building Deep Q Network..")
-    self.build_dqn(self.stage)
+    # self.build_dqn(self.stage)
 
   def train_ep(self, stage, epsilon=None, train_iter=None):
     # initialization
@@ -59,7 +58,8 @@ class Agent(BaseModel):
     self.total_loss, self.total_q = 0., 0.
 
     self.stage = stage
-    start_step = self.step_op.eval()
+    start_step = 1
+    # start_step = self.step_op.eval()
 
     # agent load the specific stage
     observation = self.agent.loadLevel(self.stage)
@@ -76,7 +76,7 @@ class Agent(BaseModel):
           'max_step:', self.max_step,
           ' state:', self.agent.getGameState())
 
-    for self.step in tqdm(range(start_step, self.max_step), ncols=70, initial=start_step):
+    for self.step in range(start_step, self.max_step):
       # 1. predict
       self.step_input = self.step
 
@@ -120,7 +120,7 @@ class Agent(BaseModel):
             or reward > 8000: # The stage is finished
       print('step:', self.step, 'test_step:', self.test_step)
       # self.save_model(self.step + 1, stage) # TODO(jeehoon): Need to check 'self.step + 1'
-      self.save_model(stage)
+      # self.save_model(stage)
       print('model saved and load level')
       self.agent.loadLevel(self.stage)
 
@@ -143,12 +143,14 @@ class Agent(BaseModel):
       check the example: https://docs.scipy.org/doc/numpy/reference/generated/numpy.random.normal.html
       """
       shootInfo = self.agent.getShootInfo() # JavaShootingAgent gives angle and power info
+      print ("shootInfo.angle=",shootInfo.getAngle(),
+             "shootInfo.power=",shootInfo.getPower())
       angle = shootInfo.getAngle()
       angle += np.random.normal(self.random_normal_mean, self.random_normal_sigma) * 100 # normally distributed value
-      angle = min(angle, MAX_ANGLE) # angle cannot exceed MAX_ANGLE
-      power = shootInfo.getPower()
+      angle = int(min(angle, MAX_ANGLE)) # angle cannot exceed MAX_ANGLE
+      power = shootInfo.getPower() / 100.0
       power += np.random.normal(self.random_normal_mean, self.random_normal_sigma) * 100 # normally distributed value
-      power = min(power, MAX_POWER) # power cannot exceed MAX_POWER
+      power = int(min(power, MAX_POWER)) # power cannot exceed MAX_POWER
       action = angle * MAX_POWER + power
     else:
       action = self.q_action.eval({self.s_t: [s_t]})[0]
@@ -170,11 +172,12 @@ class Agent(BaseModel):
     #if self.step > self.history_length-1:
       if self.step % self.train_frequency == 0: # train_frequency 1
         print('training...')
-        self.q_learning_mini_batch()
+        # self.q_learning_mini_batch()
         print('done.')
 
       if self.step % self.target_q_update_step == self.target_q_update_step - 1:
-        self.update_target_q_network()
+        # self.update_target_q_network()
+        pass
 
   def q_learning_mini_batch(self):
     if self.memory.count < self.history_length:
