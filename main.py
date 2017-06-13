@@ -112,9 +112,7 @@ def main(_):
         agent = Agent(config, actionRobot, sess)
 
         for stage in stage_infos:
-
           agent.init_for_stage(stage)
-
           stage_infos[stage][IS_PLAY_CLEARED] = agent.play(stage, test_ep=0)
           if stage_infos[stage][IS_PLAY_CLEARED]:
             save_stage_infos(stage_infos)
@@ -132,8 +130,6 @@ def main(_):
 
               save_stage_infos(stage_infos)
               continue
-          sess.close()
-          del(agent)
 
   else:
     for stage in stage_infos:
