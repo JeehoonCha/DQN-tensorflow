@@ -58,7 +58,7 @@ class Agent(BaseModel):
 
     print ("Building Deep Q Network..")
     self.build_dqn(self.stage)
-    self.load_weight_from_pkl()
+    self.load_model()
 
   def train_ep(self, stage, epsilon=None, train_iter=None):
     # initialization
@@ -370,6 +370,10 @@ class Agent(BaseModel):
       save_pkl(self.w[name].eval(), os.path.join(dir_path, "%s.pkl" % name))
 
   def load_weight_from_pkl(self, cpu_mode=False):
+    dir_path = os.path.join(self.weight_dir, str(self.stage))
+    if not os.path.exists(dir_path):
+      return
+
     with tf.variable_scope('load_pred_from_pkl'):
       self.w_input = {}
       self.w_assign_op = {}
@@ -378,7 +382,6 @@ class Agent(BaseModel):
         self.w_input[name] = tf.placeholder('float32', self.w[name].get_shape().as_list(), name=name)
         self.w_assign_op[name] = self.w[name].assign(self.w_input[name])
 
-    dir_path = os.path.join(self.weight_dir, str(self.stage))
     for name in self.w.keys():
       self.w_assign_op[name].eval({self.w_input[name]: load_pkl(os.path.join(dir_path, "%s.pkl" % name))})
 
