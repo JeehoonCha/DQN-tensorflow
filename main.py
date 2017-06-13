@@ -109,6 +109,7 @@ def main(_):
   if FLAGS.is_train:
     if not all_cleared:
       for stage in stage_infos:
+        tf.global_variables_initializer()
         with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
           agent = Agent(config, actionRobot, sess, stage)
 
@@ -116,7 +117,6 @@ def main(_):
           if stage_infos[stage][IS_PLAY_CLEARED]:
             save_stage_infos(stage_infos)
           else:
-            tf.global_variables_initializer()
             print ("Training agent... stage:" + str(stage))
             is_cleared = False
             while not (stage_infos[stage][IS_PLAY_CLEARED]):
