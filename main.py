@@ -128,6 +128,7 @@ def main(_):
 
               save_stage_infos(stage_infos)
               continue
+            sess.close()
 
   else:
     for stage in stage_infos:
