@@ -122,9 +122,7 @@ class Agent(BaseModel):
       if str(state) in ['WON', 'LOST'] or reward > 20000 : # The stage is finished while there still some birds left.
         break
 
-    if epsilon > 0:
-      self.save_trained_network()
-
+    self.save_trained_network()
     return str(state) == 'WON'
 
   def predict(self, s_t, test_ep=None, train_iter=None):

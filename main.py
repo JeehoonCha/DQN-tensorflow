@@ -120,6 +120,7 @@ def main(_):
             print ("Training agent... stage:" + str(stage))
             is_cleared = False
             while not (stage_infos[stage][IS_PLAY_CLEARED]):
+              agent.init_for_stage(stage)
               train_iter = stage_infos[stage][TRAIN_ITER]
               is_train_cleared = agent.train_ep(stage, epsilon=1, train_iter=train_iter)
               stage_infos[stage][TRAIN_ITER] = train_iter + 1
