@@ -11,6 +11,8 @@ from .utils import save_npy, load_npy
 class ReplayMemory:
   def __init__(self, config, model_dir):
     self.model_dir = model_dir
+    self.screen_height = config.screen_height
+    self.screen_width = config.screen_width
 
     self.cnn_format = config.cnn_format
     self.memory_size = config.memory_size
@@ -31,7 +33,7 @@ class ReplayMemory:
 
   def add(self, screen, reward ,action, terminal):
     screen = np.array(screen, dtype=np.uint8)
-    screen = cv2.resize(screen, (84,84), interpolation=cv2.INTER_CUBIC)
+    screen = cv2.resize(screen, (self.screen_height ,self.screen_width), interpolation=cv2.INTER_CUBIC)
 
     assert screen.shape == self.dims
     # NB! screen is post-state, after action and reward
@@ -41,6 +43,7 @@ class ReplayMemory:
     self.terminals[self.current] = terminal
     self.count = max(self.count, self.current + 1)
     self.current = (self.current + 1) % self.memory_size
+    print ("screen added to replay memory, count=%s, current=%s" % (str(self.count), str(self.current)))
 
   def getState(self, index):
     assert self.count > 0, "replay memory is empty, use at least --random_steps 1"
