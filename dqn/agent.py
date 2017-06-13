@@ -116,13 +116,13 @@ class Agent(BaseModel):
     return str(state) == 'WON'
 
   def predict(self, s_t, test_ep=None, train_iter=None):
-    print ("config.train_max_iter:",self.config.train_max_iter,
-           "self.train_max_iter:",self.train_max_iter,
+    print ("config.train_max_iter:", self.config.train_max_iter,
+           "self.train_max_iter:", self.train_max_iter,
            "self.ep_start:", str(self.ep_start),
            "test_ep:", str(test_ep),
            "train_iter:", str(train_iter))
-    ep = test_ep or self.ep_end + \
-                    max(0., (self.ep_start - self.ep_end) * (self.train_max_iter - train_iter) / self.train_max_iter) # ep: prob. to pick random action
+    ep = test_ep if test_ep else \
+      self.ep_end + max(0., (self.ep_start - self.ep_end) * (self.train_max_iter - train_iter) / self.train_max_iter)
 
     ep_rnd = random.random()
     if ep_rnd < ep:
