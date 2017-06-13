@@ -58,7 +58,7 @@ class Agent(BaseModel):
 
     print ("Building Deep Q Network..")
     self.build_dqn(self.stage)
-    # self.load_trained_network()
+    self.load_trained_network()
 
   def train_ep(self, stage, epsilon=None, train_iter=None):
     # initialization

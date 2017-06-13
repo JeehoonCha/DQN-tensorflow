@@ -129,15 +129,14 @@ def main(_):
               if (is_train_cleared):
                 is_cleared = agent.play(stage, test_ep=0)
                 stage_infos[stage][IS_PLAY_CLEARED] = is_cleared
-              save_stage_infos()
+              save_stage_infos(stage_infos)
               continue
 
     else:
       for stage in stage_infos:
         agent = Agent(config, actionRobot, sess, stage)
         stage_infos[stage][IS_PLAY_CLEARED] = agent.play(stage, test_ep=0)
-
-
+        save_stage_infos(stage_infos)
 
 if __name__ == '__main__':
   tf.app.run()
