@@ -41,11 +41,12 @@ class BaseModel(object):
 
     ckpt = tf.train.get_checkpoint_state(self.network_dirpath(stage))
     if ckpt and ckpt.model_checkpoint_path:
-      ckpt_name = os.path.basename(ckpt.model_checkpoint_path)
+      # ckpt_name = os.path.basename(ckpt.model_checkpoint_path)
+      ckpt_name = type(self).__name__
       print ("ckpt.model_checkpoint_path=%s" % ckpt.model_checkpoint_path)
       print ("ckpt_name=%s" % ckpt_name)
       fname = os.path.join(self.network_dirpath(stage), ckpt_name)
-      self.saver.restore(self.sess, fname + type(self).__name__)
+      self.saver.restore(self.sess, fname)
       print(" [*] Load SUCCESS: %s" % fname)
       return True
     else:
