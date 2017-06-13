@@ -35,6 +35,43 @@ os.environ["CUDA_VISIBLE_DEVICES"]="1"
 tf.set_random_seed(FLAGS.random_seed)
 random.seed(FLAGS.random_seed)
 
+
+MAX_STAGE = 21
+MAX_ITER_PER_STAGE = 30
+LEVEL_INFOS_FILENAME = 'level_infos.pickle'
+MAX_TRAIN_ITER = 30
+THREE_STAR = 'three_star'
+TRAIN_ITER = 'train_step'
+IS_TRAIN_CLEARED = 'is_train_cleared'
+IS_PLAY_CLEARED = 'is_play_cleared'
+stage_infos = {}
+
+import pickle
+def load_stage_infos():
+  with open(LEVEL_INFOS_FILENAME, 'rb') as f:
+    if f.exists():
+      stage_infos = pickle.load(f)
+  for level in range(1, MAX_STAGE):
+    if level not in stage_infos:
+      stage_infos[level] = {
+        IS_TRAIN_CLEARED: False,
+        IS_PLAY_CLEARED: False,
+        THREE_STAR: False,
+        TRAIN_ITER: 0,
+      }
+
+def save_stage_infos():
+  with open(LEVEL_INFOS_FILENAME, 'wb') as f:
+    pickle.dump(stage_infos, f)
+
+def is_all_cleared():
+  all_cleared = True
+  for stage in stage_infos:
+    if not stage_infos[stage][IS_CLEARED]:
+      all_cleared = False
+  return all_cleared
+
+
 import argparse
 parser = argparse.ArgumentParser(description='argument parser for agent address')
 parser.add_argument('--url', type=str, help='IP address to java agent client')
@@ -69,17 +106,36 @@ def main(_):
 
     # (Jeehoon): For now, we only train the agent of level 1
     # for stage in range(21) :
-    for stage in xrange(8,21) :
-      print ("Building Agent.. stage:" + str(stage))
-      agent = Agent(config, actionRobot, sess, stage)
-      if FLAGS.is_train:
-        for train_iter in range(config.train_max_iter):
-          print ("Training the agent.. train_iter:" + str(train_iter) + " (stage:" + str(stage) + ")")
-          # agent.train_ep(stage, train_iter=train_iter)
-          agent.train_ep(stage, epsilon=1, train_iter=train_iter)
-      else:
-        print ("Playing the agent..")
-        agent.play(stage, test_ep=0)
+    load_stage_infos()
+    all_cleared = is_all_cleared()
+
+    # Train until the agent clears all the levels
+    if FLAGS.is_train:
+      if not is_all_cleared():
+        for stage in stage_infos:
+          if stage_infos[stage][IS_PLAY_CLEARED]:
+            pass
+          else:
+            print ("Training agent... stage:" + str(stage))
+            agent = Agent(config, actionRobot, sess, stage)
+            is_cleared = False
+            while not (is_cleared):
+              train_iter = stage_infos[stage][TRAIN_ITER]
+              is_train_cleared = agent.train_ep(stage, epsilon=1, train_iter=train_iter)
+              stage_infos[stage][TRAIN_ITER] = train_iter + 1
+              stage_infos[stage][IS_TRAIN_CLEARED] = is_train_cleared
+              if (is_train_cleared):
+                is_cleared = agent.play(stage, test_ep=0)
+                stage_infos[stage][IS_PLAY_CLEARED] = is_cleared
+              save_stage_infos()
+              continue
+
+    else:
+      for stage in stage_infos:
+        agent = Agent(config, actionRobot, sess, stage)
+        stage_infos[stage][IS_PLAY_CLEARED] = agent.play(stage, test_ep=0)
+
+
 
 if __name__ == '__main__':
   tf.app.run()

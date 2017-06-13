@@ -30,9 +30,8 @@ class ReplayMemory:
     self.poststates = np.empty((self.batch_size, self.history_length) + self.dims, dtype=np.float16)
 
   def add(self, screen, reward, naive_action ,action, terminal):
-
     screen = np.array(screen, dtype=np.uint8)
-    screen = cv2.resize(screen,(84,84), interpolation=cv2.INTER_CUBIC)
+    screen = cv2.resize(screen, (84,84), interpolation=cv2.INTER_CUBIC)
 
     assert screen.shape == self.dims
     # NB! screen is post-state, after action and reward
