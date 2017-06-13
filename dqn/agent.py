@@ -41,8 +41,8 @@ class Agent(BaseModel):
     self.action_screen_shape = (SCREEN_Y_UNTIL - SCREEN_Y_FROM, SCREEN_X_UNTIL - SCREEN_X_FROM)
     self.history = History(self.config)
 
-    self.history.add(actionRobot.getScreen())
     self.memory = ReplayMemory(self.config, self.model_dir)
+    self.memory.add(self.convert_screen_to_numpy_array(actionRobot.getScreen()), 0, 0, False)
     self.maximum_reward = 18000
 
     with tf.variable_scope('step'):
