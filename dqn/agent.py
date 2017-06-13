@@ -23,17 +23,12 @@ SCREEN_X_FROM = 420
 SCREEN_X_UNTIL = 750
 
 class Agent(BaseModel):
-  def __init__(self, config, actionRobot, sess, stage):
+  def __init__(self, config, actionRobot, sess):
     print ("config=" + str(config))
     self.sess = sess
     self.weight_dir = 'weights'
-    self.stage = stage
     self.agent = actionRobot
 
-    self.min_angle = 0
-    self.max_angle = MAX_ANGLE
-
-    actionRobot.loadLevel(stage)
     self.action_size = MAX_ANGLE
     self.interval_size = MAX_INTERVAL - MIN_INTERVAL
     config.max_step = actionRobot.getMaxStep()
@@ -45,7 +40,6 @@ class Agent(BaseModel):
     self.history = History(self.config)
 
     self.memory = ReplayMemory(self.config, self.model_dir)
-    self.memory.add(self.convert_screen_to_numpy_array(actionRobot.getScreen()), 0, 0, False)
     self.maximum_reward = 18000
 
     with tf.variable_scope('step'):
@@ -60,8 +54,17 @@ class Agent(BaseModel):
     self.n_action_value = 0
 
     print ("Building Deep Q Network..")
-    self.build_dqn(self.stage)
+    self.build_dqn()
+
+  def init_for_stage(self, stage):
+    self.sess.run(tf.global_variables_initializer())
+    self.stage = stage
+    self.min_angle = 0
+    self.max_angle = MAX_ANGLE
     self.load_trained_network()
+
+    self.agent.loadLevel(stage)
+    self.memory.add(self.convert_screen_to_numpy_array(self.agent.getScreen()), 0, 0, False)
 
   def train_ep(self, stage, epsilon=None, train_iter=None):
     # initialization
@@ -191,7 +194,7 @@ class Agent(BaseModel):
     self.total_q += q_t.mean()
     self.update_count += 1
 
-  def build_dqn(self, stage):
+  def build_dqn(self):
     self.w = {}
     self.t_w = {}
 

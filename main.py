@@ -108,10 +108,12 @@ def main(_):
   # Train until the agent clears all the levels
   if FLAGS.is_train:
     if not all_cleared:
-      for stage in stage_infos:
-        tf.global_variables_initializer()
-        with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
-          agent = Agent(config, actionRobot, sess, stage)
+      with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
+        agent = Agent(config, actionRobot, sess)
+
+        for stage in stage_infos:
+
+          agent.init_for_stage(stage)
 
           stage_infos[stage][IS_PLAY_CLEARED] = agent.play(stage, test_ep=0)
           if stage_infos[stage][IS_PLAY_CLEARED]:
