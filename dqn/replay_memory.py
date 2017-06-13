@@ -53,16 +53,22 @@ class ReplayMemory:
     # sample random indexes
     indexes = []
     while len(indexes) < self.batch_size:
-      index = self.current if self.current != 0 else self.memory_size - 1
-      self.prestates[0] = self.getState(index - 1)
-      self.poststates[0] = self.getState(index)
-      indexes.append(index)
+      cur_index = self.current if self.current != 0 else self.memory_size - 1
+      prev_index = cur_index - 1 if cur_index != 0 else self.memory_size - 1
+      self.prestates[0] = self.getState(prev_index)
+      self.poststates[0] = self.getState(cur_index)
+      indexes.append(cur_index)
 
     actions = self.actions[indexes]
     rewards = self.rewards[indexes]
     terminals = self.terminals[indexes]
 
     if self.cnn_format == 'NHWC':
+      print np.transpose(self.prestates, (0,2,3,1))
+      print np.transpose(self.poststates, (0,2,3,1))
+      self.prestates = np.transpose(self.prestates, (0,2,3,1))
+      self.poststates = np.transpose(self.poststates, (0,2,3,1))
+
       return np.transpose(self.prestates, (0, 2, 3, 1)), actions, \
         rewards, np.transpose(self.poststates, (0, 2, 3, 1)), terminals
     else:
