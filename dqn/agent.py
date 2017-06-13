@@ -138,9 +138,9 @@ class Agent(BaseModel):
     if ep_rnd < ep:
       shootInfo = self.agent.getShootInfo() # JavaShootingAgent gives angle and power info
       angle = shootInfo.getAngle()
-      while (angle < max(0,self.min_angle)):
+      while (angle <= max(0,self.min_angle)):
         angle += 1
-      while (angle > min(MAX_ANGLE, self.max_angle)):
+      while (angle >= min(MAX_ANGLE, self.max_angle)):
         angle -= 1
       action = angle
     else:
