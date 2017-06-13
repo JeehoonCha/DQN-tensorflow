@@ -84,7 +84,7 @@ class Agent(BaseModel):
       # 2. act
       angle = self.predict(self.history.get(), test_ep=epsilon, train_iter=train_iter) # Pick action based on Q-Network
       tabInterval = 200 # TODO(jeehoon): need to modify
-      print('angle:',angle, 'tabInterval:',tabInterval)
+      print('angle:', angle, 'tabInterval:', tabInterval)
 
       observation = self.agent.shoot(int(angle), tabInterval)
       screen = self.convert_screen_to_numpy_array(observation.getScreen())
@@ -143,16 +143,12 @@ class Agent(BaseModel):
 
     self.target_q_update_step = 1
     self.history.add(screen)
-    self.memory.add(screen, reward, self.n_action_value, self.q_action_value, terminal)
+    self.memory.add(screen, reward, action, terminal)
     self.q_learning_mini_batch()
     self.update_target_q_network()
 
   def q_learning_mini_batch(self):
-    if self.memory.count < self.history_length:
-      return
-    else:
-      s_t, n_action, q_action, reward, s_t_plus_1, terminal = self.memory.sample()
-
+    s_t, action, reward, s_t_plus_1, terminal = self.memory.sample()
     t = time.time()
     if self.double_q:
       # Double Q-learning
@@ -172,7 +168,7 @@ class Agent(BaseModel):
 
     _, q_t, loss, summary_str = self.sess.run([self.optim, self.q, self.loss, self.q_summary], {
       self.target_q_t: target_q_t,
-      self.action: q_action,
+      self.action: action,
       self.s_t: s_t,
       self.learning_rate_step: self.step,
     })

@@ -6,7 +6,7 @@ class AgentConfig(object):
   max_step = 10
   memory_size = 4 #10,100 * scale
 
-  batch_size = 1#32
+  batch_size = 1 #32
   random_start = 0 #30
   cnn_format = 'NCHW'
   discount = 0.99
@@ -21,7 +21,7 @@ class AgentConfig(object):
   ep_end_t = memory_size
   train_max_iter = 300
 
-  history_length = 1 #2
+  history_length = 1
   train_frequency = 1#2#4
   learn_start = 2#5. * scale
 
