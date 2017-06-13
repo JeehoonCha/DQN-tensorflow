@@ -34,16 +34,17 @@ class BaseModel(object):
 
     if not os.path.exists(self.network_dirpath(stage)):
       os.makedirs(self.network_dirpath(stage))
-    self.saver.save(self.sess, self.network_dirpath(stage), global_step=step)
+    self.saver.save(self.sess, self.network_dirpath(stage) + model_name, global_step=step)
 
   def load_model(self, stage=None):
     print(" [*] Loading checkpoints...")
 
     ckpt = tf.train.get_checkpoint_state(self.network_dirpath(stage))
     if ckpt and ckpt.model_checkpoint_path:
+      print ("ckpt.model_checkpoint_path=%s" % ckpt.model_checkpoint_path)
       ckpt_name = os.path.basename(ckpt.model_checkpoint_path)
       fname = os.path.join(self.network_dirpath(stage), ckpt_name)
-      self.saver.restore(self.sess, fname)
+      self.saver.restore(self.sess, fname + type(self).__name__)
       print(" [*] Load SUCCESS: %s" % fname)
       return True
     else:
