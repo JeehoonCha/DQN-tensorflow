@@ -121,7 +121,7 @@ class Agent(BaseModel):
            "self.ep_start:", str(self.ep_start),
            "test_ep:", str(test_ep),
            "train_iter:", str(train_iter))
-    ep = test_ep if test_ep else \
+    ep = test_ep if test_ep is not None else \
       self.ep_end + max(0., (self.ep_start - self.ep_end) * (self.train_max_iter - train_iter) / self.train_max_iter)
 
     ep_rnd = random.random()
