@@ -134,6 +134,7 @@ class Agent(BaseModel):
     ep = test_ep if test_ep is not None else \
       self.ep_end + max(0., (self.ep_start - self.ep_end) * (self.train_max_iter - train_iter) / self.train_max_iter)
 
+    shootInfo = None
     ep_rnd = random.random()
     if ep_rnd < ep:
       shootInfo = self.agent.getShootInfo() # JavaShootingAgent gives angle and power info
