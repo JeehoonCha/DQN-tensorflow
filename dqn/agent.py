@@ -51,7 +51,7 @@ class Agent(BaseModel):
       self.step_assign_op = self.step_op.assign(self.step_input)
 
     self.random_normal_mean = 0
-    self.random_normal_sigma = 0.005
+    self.random_normal_sigma = 0.05
 
     self.q_action_value = 0
     self.n_action_value = 0
@@ -91,8 +91,8 @@ class Agent(BaseModel):
       reward = observation.getReward()
       terminal = observation.getTerminal()
 
-      reward_score = np.abs(reward)
-      reward_ratio = min(int(np.abs(reward)), self.maximum_reward) / float(self.maximum_reward)
+      reward_score = reward
+      reward_ratio = min(int(reward), self.maximum_reward) / float(self.maximum_reward)
       if reward_score == 0: # The bird hits nothing
         reward_ratio = -1.0
       elif str(self.agent.getGameState()) == 'WON':
