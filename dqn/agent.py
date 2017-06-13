@@ -57,10 +57,11 @@ class Agent(BaseModel):
     self.build_dqn()
 
   def init_for_stage(self, stage):
-    self.sess.run(tf.global_variables_initializer())
     self.stage = stage
     self.min_angle = 0
     self.max_angle = MAX_ANGLE
+
+    self.sess.run(tf.global_variables_initializer())
     self.load_trained_network()
 
     self.agent.loadLevel(stage)
