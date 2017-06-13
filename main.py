@@ -91,34 +91,28 @@ def calc_gpu_fraction(fraction_string):
 def main(_):
   gpu_options = tf.GPUOptions(
       per_process_gpu_memory_fraction=calc_gpu_fraction(FLAGS.gpu_fraction))
+  config = get_config(FLAGS) or FLAGS
+  gateway = JavaGateway(gateway_parameters=GatewayParameters(address=args.url)) if args.url else JavaGateway()
+  actionRobot = gateway.entry_point
 
-  with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
-    tf.get_variable_scope().reuse = True
-    config = get_config(FLAGS) or FLAGS
+  if not tf.test.is_gpu_available() and FLAGS.use_gpu:
+    raise Exception("use_gpu flag is true when no GPUs are available")
+  if not FLAGS.use_gpu:
+    config.cnn_format = 'NHWC'
 
-    gateway = JavaGateway(gateway_parameters=GatewayParameters(address=args.url)) if args.url else JavaGateway()
-    actionRobot = gateway.entry_point
+  stage_infos = load_stage_infos()
+  save_stage_infos(stage_infos)
+  print (stage_infos)
+  all_cleared = is_all_cleared(stage_infos)
 
-    if not tf.test.is_gpu_available() and FLAGS.use_gpu:
-      raise Exception("use_gpu flag is true when no GPUs are available")
-
-    if not FLAGS.use_gpu:
-      config.cnn_format = 'NHWC'
-
-    # (Jeehoon): For now, we only train the agent of level 1
-    # for stage in range(21) :
-    stage_infos = load_stage_infos()
-    save_stage_infos(stage_infos)
-    print (stage_infos)
-    all_cleared = is_all_cleared(stage_infos)
-
-    # Train until the agent clears all the levels
-    if FLAGS.is_train:
-      if not all_cleared:
-        for stage in stage_infos:
-          if stage_infos[stage][IS_PLAY_CLEARED]:
-            pass
-          else:
+  # Train until the agent clears all the levels
+  if FLAGS.is_train:
+    if not all_cleared:
+      for stage in stage_infos:
+        if stage_infos[stage][IS_PLAY_CLEARED]:
+          pass
+        else:
+          with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
             print ("Training agent... stage:" + str(stage))
             agent = Agent(config, actionRobot, sess, stage)
             is_cleared = False
@@ -135,11 +129,11 @@ def main(_):
               save_stage_infos(stage_infos)
               continue
 
-    else:
-      for stage in stage_infos:
-        agent = Agent(config, actionRobot, sess, stage)
-        stage_infos[stage][IS_PLAY_CLEARED] = agent.play(stage, test_ep=0)
-        save_stage_infos(stage_infos)
+  else:
+    for stage in stage_infos:
+      agent = Agent(config, actionRobot, sess, stage)
+      stage_infos[stage][IS_PLAY_CLEARED] = agent.play(stage, test_ep=0)
+      save_stage_infos(stage_infos)
 
 if __name__ == '__main__':
   tf.app.run()
