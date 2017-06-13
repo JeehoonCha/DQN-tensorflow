@@ -36,7 +36,7 @@ tf.set_random_seed(FLAGS.random_seed)
 random.seed(FLAGS.random_seed)
 
 
-MAX_STAGE = 21
+MAX_STAGE = 21 + 1
 MAX_ITER_PER_STAGE = 30
 LEVEL_INFOS_FILENAME = 'level_infos.pickle'
 MAX_TRAIN_ITER = 30
@@ -47,9 +47,10 @@ IS_PLAY_CLEARED = 'is_play_cleared'
 stage_infos = {}
 
 import pickle
+import os.path
 def load_stage_infos():
-  with open(LEVEL_INFOS_FILENAME, 'rb') as f:
-    if f.exists():
+  if os.path.isfile(LEVEL_INFOS_FILENAME):
+    with open(LEVEL_INFOS_FILENAME, 'rb') as f:
       stage_infos = pickle.load(f)
   for level in range(1, MAX_STAGE):
     if level not in stage_infos:
@@ -67,7 +68,7 @@ def save_stage_infos():
 def is_all_cleared():
   all_cleared = True
   for stage in stage_infos:
-    if not stage_infos[stage][IS_CLEARED]:
+    if not stage_infos[stage][IS_PLAY_CLEARED]:
       all_cleared = False
   return all_cleared
 
@@ -107,6 +108,7 @@ def main(_):
     # (Jeehoon): For now, we only train the agent of level 1
     # for stage in range(21) :
     load_stage_infos()
+    save_stage_infos()
     all_cleared = is_all_cleared()
 
     # Train until the agent clears all the levels
