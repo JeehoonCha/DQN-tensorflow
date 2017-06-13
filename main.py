@@ -113,6 +113,7 @@ def main(_):
           pass
         else:
           with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
+            tf.global_variables_initializer()
             print ("Training agent... stage:" + str(stage))
             agent = Agent(config, actionRobot, sess, stage)
             is_cleared = False
