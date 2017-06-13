@@ -7,25 +7,12 @@ class History:
 
     batch_size, history_length, screen_height, screen_width = \
         config.batch_size, config.history_length, config.screen_height, config.screen_width
+    self.history = np.zeros([history_length, screen_height, screen_width], dtype=np.int32)
 
-    #self.history = np.zeros(
-    #    [history_length, screen_height, screen_width], dtype=np.int32)
-    self.height = 480
-    self.width = 840
-
-    self.config_h = screen_height
-    self.config_w = screen_width
-
-    self.history = np.zeros(
-        [history_length, self.config_h, self.config_w], dtype=np.int32)
-
-  def add(self, screen_bytes):
-    #screen = self.convertToNumpyArray(screen_bytes, self.history[-1].shape)
-    screen = self.convertToNumpyArray(screen_bytes, (self.height,self.width))
-
+  def add(self, screen):
     # resize screen image size added by haeyong
     screen = np.array(screen, dtype=np.uint8)
-    screen = cv2.resize(screen, (self.config_h,self.config_w), interpolation=cv2.INTER_CUBIC)
+    screen = cv2.resize(screen, (self.screen_height,self.screen_width), interpolation=cv2.INTER_CUBIC)
 
     self.history[:-1] = self.history[1:]
     self.history[-1] = screen
