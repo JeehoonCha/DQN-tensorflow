@@ -26,6 +26,9 @@ flags.DEFINE_boolean('display', False, 'Whether to do display the game screen or
 flags.DEFINE_boolean('is_train', True, 'Whether to do training or testing')
 flags.DEFINE_integer('random_seed', 123, 'Value of random seed')
 
+# Url to java client
+flags.DEFINE_string('url', default_value='localhost', 'IP Address to java agent client')
+
 FLAGS = flags.FLAGS
 
 os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"   # see issue #152
@@ -53,7 +56,7 @@ def main(_):
   with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
     config = get_config(FLAGS) or FLAGS
 
-    gateway = JavaGateway()
+    gateway = JavaGateway(gateway_parameters=GatewayParameters(address=FLAGS.url))
     actionRobot = gateway.entry_point
 
     if not tf.test.is_gpu_available() and FLAGS.use_gpu:
@@ -70,7 +73,8 @@ def main(_):
       if FLAGS.is_train:
         for train_iter in range(config.train_max_iter):
           print ("Training the agent.. train_iter:" + str(train_iter) + " (stage:" + str(stage) + ")")
-          agent.train_ep(stage, train_iter=train_iter)
+          # agent.train_ep(stage, train_iter=train_iter)
+          agent.train_ep(stage, epsilon=1, train_iter=train_iter)
       else:
         print ("Playing the agent..")
         agent.play(stage, test_ep=0)
