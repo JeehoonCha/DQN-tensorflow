@@ -107,9 +107,9 @@ class Agent(BaseModel):
             'state:', self.agent.getGameState())
 
       if reward_ratio < 0:
-        if shootInfo.getIsLowAngle():
+        if shootInfo.isLowAngle():
           self.min_angle = max(self.min_angle, angle)
-        elif shootInfo.getIsHighAngle():
+        elif shootInfo.isHighAngle():
           self.max_angle = min(self.max_angle, angle)
 
       # 3. observe
