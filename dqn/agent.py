@@ -38,7 +38,7 @@ class Agent(BaseModel):
 
     self.history.add(actionRobot.getScreen())
     self.memory = ReplayMemory(self.config, self.model_dir)
-    self.maximum_reward = 16000
+    self.maximum_reward = 18000
 
     with tf.variable_scope('step'):
       self.step_op = tf.Variable(0, trainable=False, name='step')
@@ -46,8 +46,10 @@ class Agent(BaseModel):
       self.step_assign_op = self.step_op.assign(self.step_input)
 
     self.random_normal_mean = 0
-    self.random_normal_sigma = 0.01
+    self.random_normal_sigma = 0.005
 
+    self.q_action_value = 0
+    self.n_action_value = 0
 
     print ("Building Deep Q Network..")
     self.build_dqn(self.stage)
@@ -96,9 +98,9 @@ class Agent(BaseModel):
       reward = observation.getReward()
       terminal = observation.getTerminal()
 
-      reward_score = reward
-      reward = min(int(reward), self.maximum_reward) / float(self.maximum_reward)
-      if reward_score <= 0: # The bird hits nothing
+      reward_score = np.abs(reward)
+      reward = min(int(np.abs(reward)), self.maximum_reward) / float(self.maximum_reward)
+      if reward_score == 0: # The bird hits nothing
         reward = -1.0
       elif str(self.agent.getGameState()) == 'WON':
         reward = 1.0
@@ -114,13 +116,13 @@ class Agent(BaseModel):
 
       if str(self.agent.getGameState()) == 'WON' \
               or str(self.agent.getGameState()) == 'LOST' \
-              or reward > 8000 : # The stage is finished while there still some birds left.
+              or reward > 20000 : # The stage is finished while there still some birds left.
         break
 
     if self.step == self.max_step - 1 \
             or str(self.agent.getGameState()) == 'WON' \
             or str(self.agent.getGameState()) == 'LOST' \
-            or reward > 8000: # The stage is finished
+            or reward > 20000: # The stage is finished
       print('step:', self.step, 'test_step:', self.test_step)
       # self.save_model(self.step + 1, stage) # TODO(jeehoon): Need to check 'self.step + 1'
       self.save_model(stage)
@@ -140,23 +142,38 @@ class Agent(BaseModel):
     ep = test_ep or self.ep_end + \
                     max(0., (self.ep_start - self.ep_end) * (self.train_max_iter - train_iter) / self.train_max_iter) # ep: prob. to pick random action
     ep_rnd = random.random()
+
+    # action = random.randrange(self.action_size)
+    shootInfo = self.agent.getShootInfo() # JavaShootingAgent gives angle and power info
+    angle = shootInfo.getAngle()
+    angle += np.random.normal(self.random_normal_mean, self.random_normal_sigma) * 100 # normally distributed value
+    angle = min(angle, MAX_ANGLE) # angle cannot exceed MAX_ANGLE
+    power = shootInfo.getPower()
+    power += np.random.normal(self.random_normal_mean, self.random_normal_sigma) * 100 # normally distributed value
+    power = min(power, MAX_POWER) # power cannot exceed MAX_POWER
+    naive_action = int(angle) * MAX_POWER + power
+    self.n_action_value = naive_action
+
+    # q_action
+    q_action = self.q_action.eval({self.s_t: [s_t]})[0]
+    self.q_action_value = q_action
+
+    n_angle = angle
+    n_power = power
+    q_angle = q_action / MAX_POWER
+    q_power = q_action % MAX_POWER
     if ep_rnd < ep:
-      action = random.randrange(self.action_size)
+      action = naive_action
       print('################## predict random:', ep_rnd)
-      shootInfo = self.agent.getShootInfo() # JavaShootingAgent gives angle and power info
-      angle = shootInfo.getAngle()
-      angle += np.random.normal(self.random_normal_mean, self.random_normal_sigma) * 100 # normally distributed value
-      angle = min(angle, MAX_ANGLE) # angle cannot exceed MAX_ANGLE
-      power = shootInfo.getPower()
-      power += np.random.normal(self.random_normal_mean, self.random_normal_sigma) * 100 # normally distributed value
-      power = min(power, MAX_POWER) # power cannot exceed MAX_POWER
-      action = int(angle) * MAX_POWER + power
-      print('################## predicted action_angle from naive agent:', angle,' power:', power )
+      self.action_naive_agent = True
     else:
-      action = self.q_action.eval({self.s_t: [s_t]})[0]
+      action = q_action
       print('################## predict q-value:', ep)
+      self.action_naive_agent = False
 
-
+    print('################## predicted action_angle from naive agent:', n_angle,' power:', n_power )
+    print('################## predicted action_angle from agent:', q_angle,' power:', q_power )
+    print('################## delta_angle:', n_angle - q_angle, 'delta_power', n_power - q_power)
 
     return action
 
@@ -165,18 +182,21 @@ class Agent(BaseModel):
     reward = max(self.min_reward, min(self.max_reward, reward))
 
     #print('reward:',reward)
-
+    self.target_q_update_step = 1
     self.history.add(screen)
-    self.memory.add(screen, reward, action, terminal)
+
+    #self.n_action
+    self.memory.add(screen, reward, self.n_action_value, self.q_action_value, terminal)
 
     if self.step > self.learn_start-1: # learn_start = 1
     #if self.step > self.history_length-1:
       if self.step % self.train_frequency == 0: # train_frequency 1
         print('training...')
         self.q_learning_mini_batch()
-        print('done.')
+        #print('done.')
 
-      if self.step % self.target_q_update_step == self.target_q_update_step - 1:
+        #if self.step % self.target_q_update_step == self.target_q_update_step - 1:
+        print('update...q_network()...')
         self.update_target_q_network()
 
   def q_learning_mini_batch(self):
@@ -184,7 +204,7 @@ class Agent(BaseModel):
       print('********self.memory.count < self.history_length', self.memory.count, self.history_length)
       return
     else:
-      s_t, action, reward, s_t_plus_1, terminal = self.memory.sample()
+      s_t, n_action, q_action, reward, s_t_plus_1, terminal = self.memory.sample()
 
     t = time.time()
     if self.double_q:
@@ -203,12 +223,23 @@ class Agent(BaseModel):
       max_q_t_plus_1 = np.max(q_t_plus_1, axis=1)
       target_q_t = (1. - terminal) * self.discount * max_q_t_plus_1 + reward
 
-    _, q_t, loss, summary_str = self.sess.run([self.optim, self.q, self.loss, self.q_summary], {
-      self.target_q_t: target_q_t,
-      self.action: action,
-      self.s_t: s_t,
-      self.learning_rate_step: self.step,
-    })
+    if self.action_naive_agent == False :
+      _, q_t, loss, summary_str = self.sess.run([self.optim, self.q, self.loss, self.q_summary], {
+        self.target_q_t: target_q_t,
+        self.action: q_action,
+        self.naive_action: n_action,
+        self.s_t: s_t,
+        self.learning_rate_step: self.step,
+      })
+
+    else :
+      _, q_t, loss, summary_str = self.sess.run([self.optim_action, self.q, self.loss_action, self.q_summary], {
+        self.target_q_t: target_q_t,
+        self.action: q_action,
+        self.naive_action: n_action,
+        self.s_t: s_t,
+        self.learning_rate_step: self.step,
+      })
 
     self.writer.add_summary(summary_str, self.step)
     self.total_loss += loss
@@ -326,15 +357,26 @@ class Agent(BaseModel):
     with tf.variable_scope('optimizer'):
       self.target_q_t = tf.placeholder('float32', [None], name='target_q_t')
       self.action = tf.placeholder('int64', [None], name='action')
+      self.naive_action = tf.placeholder('int64', [None], name='naive_action')
 
       action_one_hot = tf.one_hot(self.action, self.action_size, 1.0, 0.0, name='action_one_hot')
+      naive_action_one_hot = tf.one_hot(self.naive_action, self.action_size, 1.0, 0.0, name='naive_action_one_hot')
       q_acted = tf.reduce_sum(self.q * action_one_hot, reduction_indices=1, name='q_acted')
+      naive_q_acted = tf.reduce_sum(self.q * naive_action_one_hot, reduction_indices=1, name='naive_q_acted')
 
       self.delta = self.target_q_t - q_acted
+
+      # Euclidean distance between x1,x2
+      #self.delta_action = tf.reduce_mean(tf.square(self.delta))
+      #self.delta_action = tf.cast(tf.reduce_sum(self.action), dtype=tf.float32) - tf.cast(tf.reduce_sum(self.naive_action), dtype=tf.float32)
+      #self.delta_action = self.target_q_t - naive_q_acted
+      self.delta_action = naive_q_acted - q_acted
 
       self.global_step = tf.Variable(0, trainable=False)
 
       self.loss = tf.reduce_mean(clipped_error(self.delta), name='loss')
+      #self.loss_action = tf.reduce_mean(tf.square(self.delta_action), name='loss_action')
+      self.loss_action = -tf.reduce_sum(naive_q_acted*tf.log(q_acted), name='loss_action')
       self.learning_rate_step = tf.placeholder('int64', None, name='learning_rate_step')
       self.learning_rate_op = tf.maximum(self.learning_rate_minimum,
           tf.train.exponential_decay(
@@ -345,6 +387,11 @@ class Agent(BaseModel):
               staircase=True))
       self.optim = tf.train.RMSPropOptimizer(
           self.learning_rate_op, momentum=0.95, epsilon=0.01).minimize(self.loss)
+
+      #self.optim_action_d = tf.train.GradientDescentOptimizer(0.05).minimize(self.loss_action)
+
+      self.optim_action = tf.train.RMSPropOptimizer(
+          self.learning_rate_op, momentum=0.95, epsilon=0.01).minimize(self.loss_action)
 
     with tf.variable_scope('summary'):
       scalar_summary_tags = ['average.reward', 'average.loss', 'average.q', \

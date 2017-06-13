@@ -19,7 +19,7 @@ class AgentConfig(object):
   ep_end = 0.1 #0.1
   ep_start = 1.
   ep_end_t = memory_size
-  train_max_iter = 1000
+  train_max_iter = 300
 
   history_length = 1 #2
   train_frequency = 1#2#4
