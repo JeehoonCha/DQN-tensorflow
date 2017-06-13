@@ -30,6 +30,9 @@ class Agent(BaseModel):
     self.stage = stage
     self.agent = actionRobot
 
+    self.min_angle = 0
+    self.max_angle = MAX_ANGLE
+
     actionRobot.loadLevel(stage)
     self.action_size = MAX_ANGLE
     self.interval_size = MAX_INTERVAL - MIN_INTERVAL
@@ -82,7 +85,7 @@ class Agent(BaseModel):
       self.step_input = self.step
 
       # 2. act
-      angle = self.predict(self.history.get(), test_ep=epsilon, train_iter=train_iter) # Pick action based on Q-Network
+      angle, shootInfo = self.predict(self.history.get(), test_ep=epsilon, train_iter=train_iter) # Pick action based on Q-Network
       tabInterval = 200 # TODO(jeehoon): need to modify
       print('angle:', angle, 'tabInterval:', tabInterval)
 
@@ -103,6 +106,12 @@ class Agent(BaseModel):
             'norm_reward:', reward_ratio,
             'state:', self.agent.getGameState())
 
+      if reward_ratio < 0:
+        if shootInfo.getIsLowAngle():
+          self.min_angle = max(self.min_angle, angle)
+        elif shootInfo.getIsHighAngle():
+          self.max_angle = min(self.max_angle, angle)
+
       # 3. observe
       self.observe(screen, reward_ratio, angle, terminal)
 
@@ -121,6 +130,7 @@ class Agent(BaseModel):
            "self.ep_start:", str(self.ep_start),
            "test_ep:", str(test_ep),
            "train_iter:", str(train_iter))
+
     ep = test_ep if test_ep is not None else \
       self.ep_end + max(0., (self.ep_start - self.ep_end) * (self.train_max_iter - train_iter) / self.train_max_iter)
 
@@ -128,15 +138,17 @@ class Agent(BaseModel):
     if ep_rnd < ep:
       shootInfo = self.agent.getShootInfo() # JavaShootingAgent gives angle and power info
       angle = shootInfo.getAngle()
-      angle += np.random.normal(self.random_normal_mean, self.random_normal_sigma) * 100 # normally distributed value
-      angle = min(angle, MAX_ANGLE) # angle cannot exceed MAX_ANGLE
+      while (angle < max(0,self.min_angle)):
+        angle += 1
+      while (angle > min(MAX_ANGLE, self.max_angle)):
+        angle -= 1
       action = angle
     else:
       q_action = self.q_action.eval({self.s_t: [s_t]})[0]
       self.q_action_value = q_action
       action = q_action
 
-    return action
+    return action, shootInfo
 
   def observe(self, screen, reward, action, terminal):
     reward = max(self.min_reward, min(self.max_reward, reward))
