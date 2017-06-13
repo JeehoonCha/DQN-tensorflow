@@ -93,6 +93,7 @@ def main(_):
       per_process_gpu_memory_fraction=calc_gpu_fraction(FLAGS.gpu_fraction))
 
   with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
+    tf.get_variable_scope().reuse = True
     config = get_config(FLAGS) or FLAGS
 
     gateway = JavaGateway(gateway_parameters=GatewayParameters(address=args.url)) if args.url else JavaGateway()
