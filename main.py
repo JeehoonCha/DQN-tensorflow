@@ -35,7 +35,6 @@ os.environ["CUDA_VISIBLE_DEVICES"]="1"
 tf.set_random_seed(FLAGS.random_seed)
 random.seed(FLAGS.random_seed)
 
-
 MAX_STAGE = 21 + 1
 MAX_ITER_PER_STAGE = 30
 LEVEL_INFOS_FILENAME = 'level_infos.pickle'
@@ -44,11 +43,11 @@ THREE_STAR = 'three_star'
 TRAIN_ITER = 'train_step'
 IS_TRAIN_CLEARED = 'is_train_cleared'
 IS_PLAY_CLEARED = 'is_play_cleared'
-stage_infos = {}
 
 import pickle
 import os.path
 def load_stage_infos():
+  stage_infos = {}
   if os.path.isfile(LEVEL_INFOS_FILENAME):
     with open(LEVEL_INFOS_FILENAME, 'rb') as f:
       stage_infos = pickle.load(f)
@@ -60,18 +59,18 @@ def load_stage_infos():
         THREE_STAR: False,
         TRAIN_ITER: 0,
       }
+  return stage_infos
 
-def save_stage_infos():
+def save_stage_infos(stage_infos):
   with open(LEVEL_INFOS_FILENAME, 'wb') as f:
     pickle.dump(stage_infos, f)
 
-def is_all_cleared():
+def is_all_cleared(stage_infos):
   all_cleared = True
   for stage in stage_infos:
     if not stage_infos[stage][IS_PLAY_CLEARED]:
       all_cleared = False
   return all_cleared
-
 
 import argparse
 parser = argparse.ArgumentParser(description='argument parser for agent address')
@@ -107,13 +106,14 @@ def main(_):
 
     # (Jeehoon): For now, we only train the agent of level 1
     # for stage in range(21) :
-    load_stage_infos()
-    save_stage_infos()
-    all_cleared = is_all_cleared()
+    stage_infos = load_stage_infos()
+    save_stage_infos(stage_infos)
+    print (stage_infos)
+    all_cleared = is_all_cleared(stage_infos)
 
     # Train until the agent clears all the levels
     if FLAGS.is_train:
-      if not is_all_cleared():
+      if not all_cleared:
         for stage in stage_infos:
           if stage_infos[stage][IS_PLAY_CLEARED]:
             pass
