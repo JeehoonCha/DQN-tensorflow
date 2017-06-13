@@ -118,10 +118,9 @@ def main(_):
             is_cleared = False
             while not (stage_infos[stage][IS_PLAY_CLEARED]):
               train_iter = stage_infos[stage][TRAIN_ITER]
-              if (not stage_infos[stage][IS_TRAIN_CLEARED]):
-                is_train_cleared = agent.train_ep(stage, epsilon=1, train_iter=train_iter)
-                stage_infos[stage][TRAIN_ITER] = train_iter + 1
-                stage_infos[stage][IS_TRAIN_CLEARED] = is_train_cleared
+              is_train_cleared = agent.train_ep(stage, epsilon=1, train_iter=train_iter)
+              stage_infos[stage][TRAIN_ITER] = train_iter + 1
+              stage_infos[stage][IS_TRAIN_CLEARED] = is_train_cleared
 
               if (stage_infos[stage][IS_TRAIN_CLEARED]):
                 stage_infos[stage][IS_PLAY_CLEARED] = agent.play(stage, test_ep=0)
