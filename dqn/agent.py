@@ -342,8 +342,8 @@ class Agent(BaseModel):
 
     self._saver = tf.train.Saver(self.w.values() + [self.step_op], max_to_keep=30)
 
-    self.load_model(stage)
-    self.update_target_q_network()
+    # self.load_model(stage)
+    # self.update_target_q_network()
 
   def update_target_q_network(self):
     for name in self.w.keys():
