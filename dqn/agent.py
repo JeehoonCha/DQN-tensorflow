@@ -100,10 +100,13 @@ class Agent(BaseModel):
 
       reward_score = reward
       reward_ratio = min(int(reward), self.maximum_reward) / float(self.maximum_reward)
+      state = self.agent.getGameState()
       if reward_score == 0: # The bird hits nothing
         reward_ratio = -1.0
-      elif str(self.agent.getGameState()) == 'WON':
-        reward_ratio = 1.0
+      elif str(state) == 'WON':
+        reward_ratio = 20.0
+      elif str(state) == 'LOST':
+        reward_ratio = -5.0
 
       print('step:',self.step,
             'reward_score:', reward_score,
