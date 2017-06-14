@@ -4,6 +4,7 @@ import time
 import random
 import numpy as np
 from tqdm import tqdm
+import threading
 import tensorflow as tf
 
 from .base import BaseModel
@@ -22,6 +23,24 @@ SCREEN_Y_UNTIL = 400
 SCREEN_X_FROM = 420
 SCREEN_X_UNTIL = 750
 PIG_REWARD = 5000
+
+class PythonListener(object):
+    def __init__(self, flag):
+      self.flag = flag
+
+    def notify(self):
+      if self.flag is not None:
+        print("flag.set()")
+        self.flag.set()
+
+    def set_flag(self, flag):
+      self.flag = flag
+
+    def remove_flag(self, flag):
+      self.flag = None
+
+    class Java:
+      implements = ["ab.doubleQ.PythonListener"]
 
 class Agent(BaseModel):
   def __init__(self, config, actionRobot, sess):
@@ -68,6 +87,9 @@ class Agent(BaseModel):
     self.agent.loadLevel(stage)
     self.memory.add(self.convert_screen_to_numpy_array(self.agent.getScreen()), 0, 0, False)
 
+    self.flag = threading.Event()
+    self.actionRobot.setListener(PythonListener(self.flag))
+
   def train_ep(self, stage, epsilon=None, train_iter=None):
     # initialization
     self.update_count = 0
@@ -94,7 +116,16 @@ class Agent(BaseModel):
       tabInterval = 200 # TODO(jeehoon): need to modify
       print('angle:', angle, 'tabInterval:', tabInterval)
 
-      observation = self.agent.shoot(int(angle), tabInterval)
+      # observation = self.agent.shoot(int(angle), tabInterval)
+      print ("flag.clear()")
+      self.flag.clear()
+      print ("agent.shoot(%s, %s)" % (str(angle), str(tabInterval)))
+      self.agent.shoot(int(angle), tabInterval)
+      print ("flag.wait()")
+      self.flag.wait(20000)
+
+      print ("self.agent.getObservation(%s, %s)" % (str(angle), str(tabInterval)))
+      observation = self.agent.getObservation(angle, tabInterval)
       screen = self.convert_screen_to_numpy_array(observation.getScreen())
       reward = observation.getReward()
       terminal = observation.getTerminal()

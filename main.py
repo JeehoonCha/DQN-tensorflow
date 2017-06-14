@@ -6,7 +6,7 @@ import tensorflow as tf
 from dqn.agent import Agent
 from dqn.environment import GymEnvironment, SimpleGymEnvironment
 from config import get_config
-from py4j.java_gateway import JavaGateway, GatewayParameters
+from py4j.java_gateway import JavaGateway, GatewayParameters, Callbackserverpa
 
 flags = tf.app.flags
 
@@ -133,10 +133,12 @@ def main(_):
               continue
 
   else:
-    for stage in stage_infos:
-      agent = Agent(config, actionRobot, sess, stage)
-      stage_infos[stage][IS_PLAY_CLEARED] = agent.play(stage, test_ep=0)
-      save_stage_infos(stage_infos)
+    with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
+      agent = Agent(config, actionRobot, sess)
+      for stage in stage_infos:
+        agent.init_for_stage(stage)
+        stage_infos[stage][IS_PLAY_CLEARED] = agent.play(stage, test_ep=0)
+        save_stage_infos(stage_infos)
 
 if __name__ == '__main__':
   tf.app.run()
