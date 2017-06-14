@@ -28,7 +28,7 @@ class PythonListener(object):
     def __init__(self, flag):
       self.flag = flag
 
-    def notify(self):
+    def notifyFlag(self):
       if self.flag is not None:
         print("flag.set()")
         self.flag.set()
