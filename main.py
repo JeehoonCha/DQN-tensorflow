@@ -96,6 +96,7 @@ def main(_):
     gateway_parameters=GatewayParameters(address=args.url),
     callback_server_parameters=CallbackServerParameters()) if args.url else \
     JavaGateway(callback_server_parameters=CallbackServerParameters())
+  actionRobot = gateway.entry_point
 
   if not tf.test.is_gpu_available() and FLAGS.use_gpu:
     raise Exception("use_gpu flag is true when no GPUs are available")
@@ -112,11 +113,12 @@ def main(_):
     if FLAGS.is_train:
       if not all_cleared:
         with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
-          agent = Agent(config, gateway, sess)
+          agent = Agent(config, actionRobot, sess)
+          agent.init_listener(actionRobot, gateway)
+          actionRobot.waitAndNotify()
 
           for stage in stage_infos:
             agent.init_for_stage(stage)
-            agent.init_listener(gateway)
             stage_infos[stage][IS_PLAY_CLEARED] = agent.play(stage, test_ep=0)
             if stage_infos[stage][IS_PLAY_CLEARED]:
               save_stage_infos(stage_infos)
@@ -138,6 +140,7 @@ def main(_):
     else:
       with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
         agent = Agent(config, actionRobot, sess)
+        agent.init_listener(actionRobot, gateway)
         for stage in stage_infos:
           agent.init_for_stage(stage)
           stage_infos[stage][IS_PLAY_CLEARED] = agent.play(stage, test_ep=0)
@@ -145,6 +148,8 @@ def main(_):
 
   except Exception as e:
     print (str(e))
+
+  finally:
     gateway.shutdown_callback_server()
     gateway.shutdown()
 

@@ -89,9 +89,9 @@ class Agent(BaseModel):
     self.agent.loadLevel(stage)
     self.memory.add(self.convert_screen_to_numpy_array(self.agent.getScreen()), 0, 0, False)
 
-  def init_listener(self, gateway):
+  def init_listener(self, actionRobot, gateway):
     self.flag = threading.Event()
-    self.agent.setListener(PythonListener(gateway, self.flag))
+    actionRobot.setListener(PythonListener(gateway, self.flag))
 
   def train_ep(self, stage, epsilon=None, train_iter=None):
     # initialization
