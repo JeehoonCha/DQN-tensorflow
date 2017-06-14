@@ -6,7 +6,7 @@ import tensorflow as tf
 from dqn.agent import Agent
 from dqn.environment import GymEnvironment, SimpleGymEnvironment
 from config import get_config
-from py4j.java_gateway import JavaGateway, GatewayParameters, Callbackserverpa
+from py4j.java_gateway import JavaGateway, GatewayParameters, CallbackServerParameters
 
 flags = tf.app.flags
 
@@ -92,7 +92,10 @@ def main(_):
   gpu_options = tf.GPUOptions(
       per_process_gpu_memory_fraction=calc_gpu_fraction(FLAGS.gpu_fraction))
   config = get_config(FLAGS) or FLAGS
-  gateway = JavaGateway(gateway_parameters=GatewayParameters(address=args.url)) if args.url else JavaGateway()
+  gateway = JavaGateway(
+    gateway_parameters=GatewayParameters(address=args.url),
+    callback_server_parameters=CallbackServerParameters()) if args.url else \
+    JavaGateway(callback_server_parameters=CallbackServerParameters())
   actionRobot = gateway.entry_point
 
   if not tf.test.is_gpu_available() and FLAGS.use_gpu:
