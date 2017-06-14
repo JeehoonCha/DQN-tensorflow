@@ -21,6 +21,7 @@ SCREEN_Y_FROM = 200
 SCREEN_Y_UNTIL = 400
 SCREEN_X_FROM = 420
 SCREEN_X_UNTIL = 750
+PIG_REWARD = 5000
 
 class Agent(BaseModel):
   def __init__(self, config, actionRobot, sess):
@@ -98,10 +99,9 @@ class Agent(BaseModel):
       reward = observation.getReward()
       terminal = observation.getTerminal()
 
-      reward_score = reward
-      reward_ratio = min(int(reward), self.maximum_reward) / float(self.maximum_reward)
+      reward_ratio = int(reward / PIG_REWARD)
       state = self.agent.getGameState()
-      if reward_score == 0: # The bird hits nothing
+      if reward_ratio == 0: # The bird hits (almost) nothing
         reward_ratio = -1.0
       elif str(state) == 'WON':
         reward_ratio = 20.0
@@ -109,7 +109,7 @@ class Agent(BaseModel):
         reward_ratio = -5.0
 
       print('step:',self.step,
-            'reward_score:', reward_score,
+            'reward_score:', reward,
             'norm_reward:', reward_ratio,
             'state:', self.agent.getGameState())
 
