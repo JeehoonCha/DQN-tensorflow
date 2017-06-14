@@ -144,6 +144,7 @@ def main(_):
           save_stage_infos(stage_infos)
 
   except Exception as e:
+    print e
     gateway.shutdown_callback_server()
     gateway.shutdown()
 
