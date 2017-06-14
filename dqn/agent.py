@@ -88,7 +88,7 @@ class Agent(BaseModel):
     self.memory.add(self.convert_screen_to_numpy_array(self.agent.getScreen()), 0, 0, False)
 
     self.flag = threading.Event()
-    self.actionRobot.setListener(PythonListener(self.flag))
+    self.agent.setListener(PythonListener(self.flag))
 
   def train_ep(self, stage, epsilon=None, train_iter=None):
     # initialization
