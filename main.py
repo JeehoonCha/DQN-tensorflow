@@ -96,7 +96,6 @@ def main(_):
     gateway_parameters=GatewayParameters(address=args.url),
     callback_server_parameters=CallbackServerParameters()) if args.url else \
     JavaGateway(callback_server_parameters=CallbackServerParameters())
-  actionRobot = gateway.entry_point
 
   if not tf.test.is_gpu_available() and FLAGS.use_gpu:
     raise Exception("use_gpu flag is true when no GPUs are available")
@@ -109,39 +108,44 @@ def main(_):
   all_cleared = is_all_cleared(stage_infos)
 
   # Train until the agent clears all the levels
-  if FLAGS.is_train:
-    if not all_cleared:
+  try:
+    if FLAGS.is_train:
+      if not all_cleared:
+        with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
+          agent = Agent(config, gateway, sess)
+
+          for stage in stage_infos:
+            agent.init_for_stage(stage)
+            agent.init_listener(gateway)
+            stage_infos[stage][IS_PLAY_CLEARED] = agent.play(stage, test_ep=0)
+            if stage_infos[stage][IS_PLAY_CLEARED]:
+              save_stage_infos(stage_infos)
+            else:
+              print ("Training agent... stage:" + str(stage))
+              is_cleared = False
+              while not (stage_infos[stage][IS_PLAY_CLEARED]):
+                agent.init_for_stage(stage)
+                train_iter = stage_infos[stage][TRAIN_ITER]
+                is_train_cleared = agent.train_ep(stage, epsilon=1, train_iter=train_iter)
+                stage_infos[stage][TRAIN_ITER] = train_iter + 1
+                stage_infos[stage][IS_TRAIN_CLEARED] = is_train_cleared
+
+                if (stage_infos[stage][IS_TRAIN_CLEARED]):
+                  stage_infos[stage][IS_PLAY_CLEARED] = agent.play(stage, test_ep=0)
+
+                save_stage_infos(stage_infos)
+                continue
+    else:
       with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
         agent = Agent(config, actionRobot, sess)
-
         for stage in stage_infos:
           agent.init_for_stage(stage)
           stage_infos[stage][IS_PLAY_CLEARED] = agent.play(stage, test_ep=0)
-          if stage_infos[stage][IS_PLAY_CLEARED]:
-            save_stage_infos(stage_infos)
-          else:
-            print ("Training agent... stage:" + str(stage))
-            is_cleared = False
-            while not (stage_infos[stage][IS_PLAY_CLEARED]):
-              agent.init_for_stage(stage)
-              train_iter = stage_infos[stage][TRAIN_ITER]
-              is_train_cleared = agent.train_ep(stage, epsilon=1, train_iter=train_iter)
-              stage_infos[stage][TRAIN_ITER] = train_iter + 1
-              stage_infos[stage][IS_TRAIN_CLEARED] = is_train_cleared
+          save_stage_infos(stage_infos)
 
-              if (stage_infos[stage][IS_TRAIN_CLEARED]):
-                stage_infos[stage][IS_PLAY_CLEARED] = agent.play(stage, test_ep=0)
-
-              save_stage_infos(stage_infos)
-              continue
-
-  else:
-    with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
-      agent = Agent(config, actionRobot, sess)
-      for stage in stage_infos:
-        agent.init_for_stage(stage)
-        stage_infos[stage][IS_PLAY_CLEARED] = agent.play(stage, test_ep=0)
-        save_stage_infos(stage_infos)
+  except Exception as e:
+    gateway.shutdown_callback_server()
+    gateway.shutdown()
 
 if __name__ == '__main__':
   tf.app.run()

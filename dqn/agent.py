@@ -25,10 +25,12 @@ SCREEN_X_UNTIL = 750
 PIG_REWARD = 5000
 
 class PythonListener(object):
-    def __init__(self, flag):
+    def __init__(self, gateway, flag):
+      self.gateway = gateway
       self.flag = flag
 
     def notifyFlag(self):
+      print ("notifyFlag()")
       if self.flag is not None:
         print("flag.set()")
         self.flag.set()
@@ -87,8 +89,9 @@ class Agent(BaseModel):
     self.agent.loadLevel(stage)
     self.memory.add(self.convert_screen_to_numpy_array(self.agent.getScreen()), 0, 0, False)
 
+  def init_listener(self, gateway):
     self.flag = threading.Event()
-    self.agent.setListener(PythonListener(self.flag))
+    self.agent.setListener(PythonListener(gateway, self.flag))
 
   def train_ep(self, stage, epsilon=None, train_iter=None):
     # initialization
