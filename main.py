@@ -112,7 +112,7 @@ def main(_):
   with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
     agent = Agent(config, actionRobot, sess)
     agent.init_for_stage(stage)
-    if bool(args.train):
+    if bool(args.train in ["true", "True"]):
       agent.train_ep(stage, epsilon=1)
     else:
       agent.play(stage, test_ep=0)
