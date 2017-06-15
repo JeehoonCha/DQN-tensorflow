@@ -108,10 +108,11 @@ def main(_):
   print (stage_infos)
   all_cleared = is_all_cleared(stage_infos)
 
+  print ("train=" + str(bool(args.train)))
   with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
     agent = Agent(config, actionRobot, sess)
     agent.init_for_stage(stage)
-    if args.train:
+    if bool(args.train):
       agent.train_ep(stage, epsilon=1)
     else:
       agent.play(stage, test_ep=0)
