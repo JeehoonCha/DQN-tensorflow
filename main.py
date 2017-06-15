@@ -76,6 +76,7 @@ import argparse
 parser = argparse.ArgumentParser(description='argument parser for agent address')
 parser.add_argument('--url', type=str, help='IP address to java agent client')
 parser.add_argument('--stage', type=int, help='IP address to java agent client')
+parser.add_argument('--train', type=bool, help='IP address to java agent client')
 args = parser.parse_args()
 
 if FLAGS.gpu_fraction == '':
@@ -106,6 +107,14 @@ def main(_):
   save_stage_infos(stage_infos)
   print (stage_infos)
   all_cleared = is_all_cleared(stage_infos)
+
+  with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
+    agent = Agent(config, actionRobot, sess)
+    agent.init_for_stage(stage)
+    if args.train:
+      agent.train_ep(stage, epsilon=1)
+    else:
+      agent.play(stage, test_ep=0)
 
   # Train until the agent clears all the levels
   if FLAGS.is_train:
