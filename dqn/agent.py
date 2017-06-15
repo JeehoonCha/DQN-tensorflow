@@ -100,12 +100,12 @@ class Agent(BaseModel):
       reward = observation.getReward()
       terminal = observation.getTerminal()
 
-      reward_ratio = int(reward / PIG_REWARD)
+      reward_ratio = int(reward / self.maximum_reward)
       state = self.agent.getGameState()
       if reward_ratio == 0: # The bird hits (almost) nothing
         reward_ratio = -1.0
       elif str(state) == 'WON':
-        reward_ratio = 20.0
+        reward_ratio = 1.0
       elif str(state) == 'LOST':
         reward_ratio = -5.0
 

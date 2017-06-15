@@ -75,6 +75,7 @@ def is_all_cleared(stage_infos):
 import argparse
 parser = argparse.ArgumentParser(description='argument parser for agent address')
 parser.add_argument('--url', type=str, help='IP address to java agent client')
+parser.add_argument('--stage', type=int, help='IP address to java agent client')
 args = parser.parse_args()
 
 if FLAGS.gpu_fraction == '':
@@ -100,6 +101,7 @@ def main(_):
   if not FLAGS.use_gpu:
     config.cnn_format = 'NHWC'
 
+  stage = args.stage
   stage_infos = load_stage_infos()
   save_stage_infos(stage_infos)
   print (stage_infos)
@@ -111,7 +113,7 @@ def main(_):
       with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
         agent = Agent(config, actionRobot, sess)
 
-        for stage in stage_infos:
+        for stage in xrange(stage, MAX_STAGE + 1):
           agent.init_for_stage(stage)
           stage_infos[stage][IS_PLAY_CLEARED] = agent.play(stage, test_ep=0)
           if stage_infos[stage][IS_PLAY_CLEARED]:
