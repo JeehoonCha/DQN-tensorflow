@@ -100,7 +100,7 @@ class Agent(BaseModel):
       reward = observation.getReward()
       terminal = observation.getTerminal()
 
-      reward_ratio = float(reward / self.maximum_reward)
+      reward_ratio = float(min(reward, self.maximum_reward) / float(self.maximum_reward))
       state = self.agent.getGameState()
       if reward_ratio == 0: # The bird hits (almost) nothing
         reward_ratio = -1.0
